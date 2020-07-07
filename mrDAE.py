@@ -2,10 +2,11 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:30:39
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-07 01:20:01
+@LastEditTime: 2020-07-07 09:14:03
 @Description: Do not edit
 '''
 
+import numpy as np
 import utils
 import os
 import gc
@@ -20,7 +21,7 @@ def getGaborFilter():
     RI_Part = 'b'
 
     #- 获取Gabor滤波器组
-    Gabor_Filter = uitls.Gabor()
+    Gabor_Filter = utils.Gabor()
     Gabor_Filter.setParam(ksize, Theta, Lambda, Gamma, Beta, RI_Part)
     return Gabor_Filter
 
@@ -43,6 +44,9 @@ def DataPreprocess(Train_X, Gabor_Filter, ImageBlockSize, numSamples, Whiten=Tru
 
     Image_Blocks, Whiten_Average, Whiten_U = utils.PCA_Whiten(Image_Blocks, Whiten)
 
+    del Train_Gabor
+    gc.collect()
+
     return Image_Blocks, Image_Blocks_Gabor, Whiten_Average, Whiten_U
 
 
@@ -56,7 +60,7 @@ if __name__ == "__main__":
     #* Gabor 滤波器
     Gabor_Filter = getGaborFilter()
     #* 载入数据
-    Train_X, Train_Y, Test_X, Test_Y = Load_Data("./Datasets/Fashion_MNIST_Data", "Fashion-MNIST")
+    Train_X, Train_Y, Test_X, Test_Y = Load_Data("./Datasets/MNIST_Data", "MNIST")
     #* 截取图像块、数据预处理
     Image_Blocks, Image_Blocks_Gabor, Whiten_Average, Whiten_U = DataPreprocess(Train_X, Gabor_Filter, (11, 11), 400000, isWhiten)
     

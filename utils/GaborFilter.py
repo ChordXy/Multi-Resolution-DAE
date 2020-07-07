@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 09:45:19
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-06 17:32:02
+@LastEditTime: 2020-07-07 09:09:05
 @Description: Gabor 濾波器
 '''
 
@@ -229,7 +229,7 @@ class Gabor():
             for i in range(totalbatch):
                 Loggers.ProcessingBar(i + 1, totalbatch, CompleteLog='')
 
-                Selected_Images = Images[i * batchsize : min((i + 1) * batchsize, numImages)]
+                Selected_Images = Images[i * batchsize : (i + 1) * batchsize]
                 res = sess.run(conv, feed_dict={input_image:Selected_Images, input_filter:self.__Gabor_filter})
                 if i == 0:
                     result = res

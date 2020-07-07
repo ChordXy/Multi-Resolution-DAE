@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:51:08
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-07 01:12:19
+@LastEditTime: 2020-07-07 10:10:29
 @Description: Do not edit
 '''
 
@@ -27,7 +27,6 @@ class MultiResolutionDAE():
         self.Main_Inputs = Image_Blocks
         self.Siamese_Inputs = Image_Blocks_Gabor
         self.numSamples = Image_Blocks.shape[0]
-        self.n_class = Train_Y.shape[1]
         self.ImageBlockSize = Block
         self.numPixels = Block[0] * Block[1]
         self.Gabor_Filter = Gabor_Filter
@@ -129,7 +128,7 @@ class MultiResolutionDAE():
 
         ############################  构建网络  ############################
         encoder_layer, decoder_layer = self.TiedEncoderDecoderLayer(input_Main, self.numPixels, self.n_Hiddens, tf.nn.leaky_relu)
-        siamese_layer = self.SiameseLayer(input_Siamese, self.sumGaborVisionArea, self.n_Hiddens, tf.nn.leaky_relu)
+        siamese_layer = self.TiedSiameseLayer(input_Siamese, self.sumGaborVisionArea, self.n_Hiddens, tf.nn.leaky_relu)
 
         #* 重建损失
         loss_reconstruction = tf.reduce_mean(tf.pow(tf.subtract(input_Main, decoder_layer), 2.0))
@@ -372,7 +371,7 @@ class MultiResolutionDAE():
         ksize = [1, numRow // 2, numCol // 2, 1]
         stride = [1, numRow - numRow // 2, numCol - numCol //2, 1]
 
-        totalbatch = math.ceil(numData / self.Encode_Batch_Size)
+        totalbatch = math.ceil(numData / batch_size)
 
         #! 演示分割结果
         # display_no = 0
@@ -384,17 +383,17 @@ class MultiResolutionDAE():
         Encodered_Data = np.zeros([numData, 4 * self.n_Hiddens])
 
         #* 输入
-        input_Main = tf.placeholder(tf.float32, [self.Encode_Batch_Size, numRow * numCol, self.numPixels])
+        input_Main = tf.placeholder(tf.float32, [batch_size, numRow * numCol, self.numPixels])
         #* 改变形状，适应批量乘法
-        input_Main_Reshaped = tf.reshape(input_Main, [self.Encode_Batch_Size * numRow * numCol, self.numPixels])
+        input_Main_Reshaped = tf.reshape(input_Main, [batch_size * numRow * numCol, self.numPixels])
         #* 特征编码
         encoder_layer, _ = self.TiedEncoderDecoderLayer(input_Main_Reshaped, self.numPixels, self.n_Hiddens, tf.nn.leaky_relu, False)
         #* 变换形状
-        encoder_Reshaped = tf.reshape(encoder_layer, [self.Encode_Batch_Size, numRow, numCol, self.n_Hiddens])
+        encoder_Reshaped = tf.reshape(encoder_layer, [batch_size, numRow, numCol, self.n_Hiddens])
         #* 均值池化
         avgpool = tf.nn.avg_pool(encoder_Reshaped, ksize, stride, 'VALID')
         #* 变换形状，首尾拼接
-        avgpool_Reshaped = tf.reshape(avgpool, [self.Encode_Batch_Size, 4 * self.n_Hiddens])
+        avgpool_Reshaped = tf.reshape(avgpool, [batch_size, 4 * self.n_Hiddens])
 
         saver = tf.train.Saver()
 
@@ -404,13 +403,13 @@ class MultiResolutionDAE():
 
             tsg = Loggers.TFprint.TFprint("Extracting High Dimensional Features...")
             for i in range(totalbatch):
-                Splited_Image = Preprocess.Fully_Sampling(  Data[i * self.Encode_Batch_Size : (i + 1) * self.Encode_Batch_Size],
+                Splited_Image = Preprocess.Fully_Sampling(  Data[i * batch_size : (i + 1) * batch_size],
                                                             self.Gabor_Filter,
                                                             self.ImageBlockSize,
                                                             isWhiten=isWhiten,
                                                             Whiten_Average=Whiten_Average,
                                                             Whiten_U=Whiten_U)
-                Encodered_Data[i * self.Encode_Batch_Size : (i + 1) * self.Encode_Batch_Size, :] = sess.run(avgpool_Reshaped, feed_dict = {input_Main : Splited_Image})
+                Encodered_Data[i * batch_size : (i + 1) * batch_size, :] = sess.run(avgpool_Reshaped, feed_dict = {input_Main : Splited_Image})
                 Loggers.ProcessingBar(i + 1, totalbatch, CompleteLog='')
             Loggers.TFprint.TFprint("Extracting High Dimensional Features Done!", tsg)
         return Encodered_Data
@@ -455,15 +454,15 @@ class MultiResolutionDAE():
         Returns:
             [array, array]: 特征编码并筛选后的结果
         """
-        Train_feature = self.ExtractEncoderFeature(Train, isWhiten, Whiten_Average, Whiten_U, batch_size)
-        Test_feature = self.ExtractEncoderFeature(Test, isWhiten, Whiten_Average, Whiten_U, batch_size)
+        Train_feature = self.Encodering_Feature(Train, isWhiten, Whiten_Average, Whiten_U, batch_size)
+        Test_feature = self.Encodering_Feature(Test, isWhiten, Whiten_Average, Whiten_U, batch_size)
         if isFeatureReduction:
             Train_feature, Test_feature = self.FeatureReduction(Train_feature, Test_feature)
         return Train_feature, Test_feature
 
 
 class mrDAE_Classifier():
-    def __init__():
+    def __init__(self):
         self.set_MLP_Training_Parameters()
 
     #- 初始化 MLP 参数
@@ -601,18 +600,18 @@ class mrDAE_Classifier():
         ############################  训练网络  ############################
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
-            for epoch in range(training_epochs):
+            for epoch in range(self.MLP_Training_Epochs):
                 avg_loss = 0
-                for i in range(self.MLP_Training_Epochs):
+                for i in range(totalbatch):
                     #* 提取每个Batch对应的数据
                     batch_xs = self.Train_X[i * self.MLP_Batch_Size : (i + 1) * self.MLP_Batch_Size, :]
                     batch_ys = self.Train_Y[i * self.MLP_Batch_Size : (i + 1) * self.MLP_Batch_Size, :]
                     #* 加入噪声
-                    batch_xs_noise = batch_xs + self.self.MLP_gaussian * np.random.randn(self.MLP_Batch_Size, n_features)
+                    batch_xs_noise = batch_xs + self.MLP_gaussian * np.random.randn(self.MLP_Batch_Size, self.n_features)
                     #* 训练网络
                     _, ls = sess.run([optimizer, loss], feed_dict={input_Feature : batch_xs_noise, y : batch_ys, dropout_keep_prob : self.DropOut, flag_training : True})
-                    avg_loss += ls / total_batch
-                    Loggers.ProcessingBar(i + 1, self.MLP_Training_Epochs, isClear=True)
+                    avg_loss += ls / totalbatch
+                    Loggers.ProcessingBar(i + 1, totalbatch, isClear=True)
 
                 if (epoch + 1) % self.display_step == 0:
                     f_acc = accuracy.eval(feed_dict = {input_Feature : self.Test_X, y : self.Test_Y, dropout_keep_prob : 1., flag_training : False})
@@ -620,7 +619,7 @@ class mrDAE_Classifier():
                     message = "Epoch : " + '%04d' % (epoch + 1) + \
                             " Loss = " + "{:.5f}".format(avg_loss) + \
                             " Learning Rate = " + "{:.5f}".format(learn_rate) + \
-                            " Final Accuracy = " + "{:.5f}".format(f_acc)
+                            " Final Accuracy = " + "{:.9f}".format(f_acc)
                     Loggers.TFprint.TFprint(message)
                     save_path = saver.save(sess, self.model_path, global_step = epoch)
 
