@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:51:08
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-08 14:32:31
+@LastEditTime: 2020-07-08 20:59:57
 @Description: Do not edit
 '''
 
@@ -168,7 +168,7 @@ class MultiResolutionDAE():
 
             Loggers.TFprint.TFprint("Finished!")
             save_path = saver.save(sess, self.model_path)
-            Loggers.TFprint.TFprint("Model saved in file : ", save_path)
+            Loggers.TFprint.TFprint("Model saved in file : " + save_path)
 
     def Display_TiedReconstruction(self, numImages):
         """显示重建结果
@@ -323,7 +323,7 @@ class MultiResolutionDAE():
 
             Loggers.TFprint.TFprint("Finished!")
             save_path = saver.save(sess, self.model_path)
-            Loggers.TFprint.TFprint("Model saved in file : ", save_path)
+            Loggers.TFprint.TFprint("Model saved in file : " + save_path)
 
     def Display_Reconstruction(self, numImages):
         """显示重建结果
@@ -625,9 +625,9 @@ class mrDAE_Classifier():
 
             Loggers.TFprint.TFprint("Finished!")
             save_path = saver.save(sess, self.model_path)
-            Loggers.TFprint.TFprint("Model saved in file : ", save_path)
+            Loggers.TFprint.TFprint("Model saved in file : " + save_path)
             #* 测试集结果
-            Loggers.TFprint.TFprint("Testing Accuracy : ", accuracy.eval(feed_dict = {input_Feature : self.Test_X, y : self.Test_Y, dropout_keep_prob : 1., flag_training : False}))
+            Loggers.TFprint.TFprint("Testing Accuracy : {}".format(accuracy.eval(feed_dict = {input_Feature : self.Test_X, y : self.Test_Y, dropout_keep_prob : 1., flag_training : False})))
 
 
 #@ 附加函数

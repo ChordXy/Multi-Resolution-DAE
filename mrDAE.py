@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:30:39
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-07 09:14:03
+@LastEditTime: 2020-07-08 22:05:36
 @Description: Do not edit
 '''
 
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     mrDAE = utils.MultiResolutionDAE()
     mrDAE.set_AE_Input_Data(Image_Blocks, Image_Blocks_Gabor, Gabor_Filter)
     mrDAE.set_AE_Parameters(n_Hiddens=1024, reconstruction_reg=0.5, measurement_reg=0.1, sparse_reg=0.1, gaussian=0.02, batch_size=500, display_step=1)
-    mrDAE.set_TiedAE_Training_Parameters(epochs=500, lr_init=2e-1, lr_decay_step=4, lr_decay_rate=0.98)
+    mrDAE.set_TiedAE_Training_Parameters(epochs=650, lr_init=2e-1, lr_decay_step=4, lr_decay_rate=0.98)
 
     #* 训练mrDAE
     mrDAE.Build_TiedAutoEncoderNetwork()
