@@ -175,7 +175,7 @@ def ProcessingBar(Counting, Total, graph = '█', CompleteLog = 'Success!', isCl
     if Counting == Total:
         #* 如果清空，则将terminal宽的字符全部清除
         if isClear:
-            print(' ' * (terminal_width - 1) + '\r', end = "")
+            print(' ' * (os.get_terminal_size().columns - 1) + '\r', end = "")
         #* 如果输入结束日志，则显示结束结果
         elif CompleteLog:
             print("\r\n" + getTimeInfo() + CompleteLog)

@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:51:08
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-08 20:59:57
+@LastEditTime: 2020-07-09 13:29:54
 @Description: Do not edit
 '''
 
@@ -18,6 +18,7 @@ import os
 
 class MultiResolutionDAE():
     def __init__(self):
+        self.isLoadModel = True
         self.set_AE_Parameters()
         self.set_AE_Training_Parameters()
         self.set_TiedAE_Training_Parameters()
@@ -61,6 +62,29 @@ class MultiResolutionDAE():
         self.TiedAE_Learning_Rate_Decay_Step = lr_decay_step
         self.TiedAE_Learning_Rate_Decay_Rate = lr_decay_rate
 
+    #- AE 公有
+    def SiameseLayer(self, Input_Layer, Input_Size, Output_Size, Activation, isTrainable=True):
+        """Siamese层
+        
+        Arguments:
+            Input_Layer {np.array} -- 前序层
+            Input_Size {int} -- 输入大小
+            Output_Size {int} -- 输出大小
+            Activation {function} -- 激活函数
+        
+        Keyword Arguments:
+            isTrainable {bool} -- [是否可训练] (default: {True})
+        
+        Returns:
+            np.array -- 层结果
+        """
+        with tf.variable_scope('Siamese_Layer') as scope_siamese:
+            weight = tf.get_variable('Siamese_Weight', [Input_Size, Output_Size], tf.float32, xavier_initializer(), trainable=isTrainable)
+            bias = tf.get_variable('Siamese_Bias', [Output_Size], tf.float32, tf.zeros_initializer(), trainable=isTrainable)
+        siamese_layer = Activation(tf.matmul(Input_Layer, weight) + bias)
+        siamese_layer_bn = tf.contrib.layers.batch_norm(siamese_layer, 0.9, epsilon = 1e-5, trainable=isTrainable)
+        return siamese_layer_bn
+
     #- Tied AE网络
     def TiedEncoderDecoderLayer(self, Input_Layer, Input_Size, Hidden_Size, Activation_Encoder, isTrainable=True):
         """绑定编、解码层
@@ -86,28 +110,6 @@ class MultiResolutionDAE():
         decoder_layer = tf.matmul(encoder_layer, tf.transpose(weight)) + bias_de
         return encoder_layer, decoder_layer
 
-    def TiedSiameseLayer(self, Input_Layer, Input_Size, Output_Size, Activation, isTrainable=True):
-        """Tied Siamese层
-        
-        Arguments:
-            Input_Layer {np.array} -- 前序层
-            Input_Size {int} -- 输入大小
-            Output_Size {int} -- 输出大小
-            Activation {function} -- 激活函数
-        
-        Keyword Arguments:
-            isTrainable {bool} -- [是否可训练] (default: {True})
-        
-        Returns:
-            np.array -- 层结果
-        """
-        with tf.variable_scope('Tied_Siamese_Layer') as scope_tied_siamese:
-            weight = tf.get_variable('Tied_Siamese_Weight', [Input_Size, Output_Size], tf.float32, xavier_initializer(), trainable=isTrainable)
-            bias = tf.get_variable('Tied_Siamese_Bias', [Output_Size], tf.float32, tf.zeros_initializer(), trainable=isTrainable)
-        tied_siamese_layer = Activation(tf.matmul(Input_Layer, weight) + bias)
-        tied_siamese_layer_bn = tf.contrib.layers.batch_norm(tied_siamese_layer, 0.9, epsilon = 1e-5, trainable=isTrainable)
-        return tied_siamese_layer_bn
-
     def Build_TiedAutoEncoderNetwork(self):
         """带Siamese旁支、绑定权重的AE网络
         """
@@ -115,6 +117,7 @@ class MultiResolutionDAE():
         tf.reset_default_graph()
     
         ############################  设置衰减学习率  ############################
+        self.isLoadModel = False
         total_batch = math.ceil(self.numSamples / self.batch_size)
         global_step = tf.Variable(0, trainable=False)
         learning_rate = tf.train.exponential_decay( learning_rate=self.TiedAE_Learning_Rate_Init, 
@@ -128,7 +131,7 @@ class MultiResolutionDAE():
 
         ############################  构建网络  ############################
         encoder_layer, decoder_layer = self.TiedEncoderDecoderLayer(input_Main, self.numPixels, self.n_Hiddens, tf.nn.leaky_relu)
-        siamese_layer = self.TiedSiameseLayer(input_Siamese, self.sumGaborVisionArea, self.n_Hiddens, tf.nn.leaky_relu)
+        siamese_layer = self.SiameseLayer(input_Siamese, self.sumGaborVisionArea, self.n_Hiddens, tf.nn.leaky_relu)
 
         #* 重建损失
         loss_reconstruction = tf.reduce_mean(tf.pow(tf.subtract(input_Main, decoder_layer), 2.0))
@@ -169,32 +172,6 @@ class MultiResolutionDAE():
             Loggers.TFprint.TFprint("Finished!")
             save_path = saver.save(sess, self.model_path)
             Loggers.TFprint.TFprint("Model saved in file : " + save_path)
-
-    def Display_TiedReconstruction(self, numImages):
-        """显示重建结果
-        
-        Arguments:
-            numImages {int} -- 重建的图像数量
-        """
-        tf.reset_default_graph()
-
-        ############################  构建网络  ############################
-        input_Main = tf.placeholder(tf.float32, [None, self.numPixels])
-        encoder_layer, decoder_layer = self.TiedEncoderDecoderLayer(input_Main, self.numPixels, self.n_Hiddens, tf.nn.leaky_relu)
-
-        saver = tf.train.Saver()
-
-        with tf.Session() as sess:
-            sess.run(tf.global_variables_initializer())
-            saver.restore(sess, self.model_path)
-
-            batch_xs = self.Main_Inputs[0 : numImages]
-            output_val = sess.run([decoder_layer], feed_dict = {input_Main : batch_xs})
-            
-            batch_xs = np.reshape(batch_xs, [numImages, *self.ImageBlockSize])
-            output_val = np.reshape(output_val, [numImages, *self.ImageBlockSize])
-
-            DisplayReconstructionResult(batch_xs, output_val)
 
 
     #- AE网络 （暂时不用）
@@ -240,28 +217,6 @@ class MultiResolutionDAE():
         decoder_layer = Activation(tf.matmul(Input_Layer, weight) + bias)
         return decoder_layer
     
-    def SiameseLayer(self, Input_Layer, Input_Size, Output_Size, Activation, isTrainable=True):
-        """Siamese层
-        
-        Arguments:
-            Input_Layer {np.array} -- 前序层
-            Input_Size {int} -- 输入大小
-            Output_Size {int} -- 输出大小
-            Activation {function} -- 激活函数
-        
-        Keyword Arguments:
-            isTrainable {bool} -- [是否可训练] (default: {True})
-        
-        Returns:
-            np.array -- 层结果
-        """
-        with tf.variable_scope('Siamese_Layer') as scope_siamese:
-            weight = tf.get_variable('Siamese_Weight', [Input_Size, Output_Size], tf.float32, xavier_initializer(), trainable=isTrainable)
-            bias = tf.get_variable('Siamese_Bias', [Output_Size], tf.float32, tf.zeros_initializer(), trainable=isTrainable)
-        siamese_layer = Activation(tf.matmul(Input_Layer, weight) + bias)
-        siamese_layer_bn = tf.contrib.layers.batch_norm(siamese_layer, 0.9, epsilon = 1e-5, trainable=isTrainable)
-        return siamese_layer_bn
-
     def Build_AutoEncoderNetwork(self):
         """带Siamese旁支的AE网络
         """
@@ -269,6 +224,7 @@ class MultiResolutionDAE():
         tf.reset_default_graph()
 
         ############################  设置衰减学习率  ############################
+        self.isLoadModel = False
         total_batch = math.ceil(self.numSamples / self.batch_size)
         global_step = tf.Variable(0, trainable=False)
         learning_rate = tf.train.exponential_decay( learning_rate=self.AE_Learning_Rate_Init, 
@@ -324,33 +280,6 @@ class MultiResolutionDAE():
             Loggers.TFprint.TFprint("Finished!")
             save_path = saver.save(sess, self.model_path)
             Loggers.TFprint.TFprint("Model saved in file : " + save_path)
-
-    def Display_Reconstruction(self, numImages):
-        """显示重建结果
-        
-        Arguments:
-            numImages {int} -- 重建的图像数量
-        """
-        tf.reset_default_graph()
-
-        ############################  构建网络  ############################
-        input_Main = tf.placeholder(tf.float32, [None, self.numPixels])
-        encoder_layer = self.EncoderLayer(input_Main, self.numPixels, self.n_Hiddens, tf.nn.leaky_relu)
-        decoder_layer = self.DecoderLayer(encoder_layer, self.n_Hiddens, self.numPixels, tf.nn.leaky_relu)
-
-        saver = tf.train.Saver()
-
-        with tf.Session() as sess:
-            sess.run(tf.global_variables_initializer())
-            saver.restore(sess, self.model_path)
-
-            batch_xs = self.Main_Inputs[0 : numImages]
-            output_val = sess.run([decoder_layer], feed_dict = {input_Main : batch_xs})
-            
-            batch_xs = np.reshape(batch_xs, [numImages, *self.ImageBlockSize])
-            output_val = np.reshape(output_val, [numImages, *self.ImageBlockSize])
-
-            DisplayReconstructionResult(batch_xs, output_val)
 
 
     #- AE 编码，提取 mrDAE 特征
@@ -454,12 +383,68 @@ class MultiResolutionDAE():
         Returns:
             [array, array]: 特征编码并筛选后的结果
         """
+        if self.isLoadModel:
+            Whiten_Average = np.load('./Model_mrDAE/Whiten_Average.npy')
+            Whiten_U = np.load('./Model_mrDAE/Whiten_MatrixU.npy')
+
         Train_feature = self.Encodering_Feature(Train, isWhiten, Whiten_Average, Whiten_U, batch_size)
         Test_feature = self.Encodering_Feature(Test, isWhiten, Whiten_Average, Whiten_U, batch_size)
         if isFeatureReduction:
             Train_feature, Test_feature = self.FeatureReduction(Train_feature, Test_feature)
         return Train_feature, Test_feature
 
+
+    #- 可视化
+    def Display_Reconstruction(self, numImages):
+        """显示重建结果
+        
+        Arguments:
+            numImages {int} -- 重建的图像数量
+        """
+        tf.reset_default_graph()
+
+        ############################  构建网络  ############################
+        input_Main = tf.placeholder(tf.float32, [None, self.numPixels])
+        encoder_layer = self.EncoderLayer(input_Main, self.numPixels, self.n_Hiddens, tf.nn.leaky_relu)
+        decoder_layer = self.DecoderLayer(encoder_layer, self.n_Hiddens, self.numPixels, tf.nn.leaky_relu)
+
+        saver = tf.train.Saver()
+
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            saver.restore(sess, self.model_path)
+
+            batch_xs = self.Main_Inputs[0 : numImages]
+            output_val = sess.run([decoder_layer], feed_dict = {input_Main : batch_xs})
+            
+            batch_xs = np.reshape(batch_xs, [numImages, *self.ImageBlockSize])
+            output_val = np.reshape(output_val, [numImages, *self.ImageBlockSize])
+
+            DisplayReconstructionResult(batch_xs, output_val)
+
+    def Visualization(self, numDisplay=5, isTied=True):
+        tf.reset_default_graph()
+        saver = tf.train.Saver()
+        
+        if isTied:
+            encoder_weight = tf.get_variable('Tied_Weight')
+            encoder_bias = tf.get_variable('Tied_Encoder_Bias')
+        else:
+            encoder_weight = tf.get_variable('Encoder_Weight')
+            encoder_bias = tf.get_variable('Encoder_Bias')
+
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            saver.restore(sess, self.model_path)
+            weight = sess.run(encoder_weight)
+            bias = sess.run(encoder_bias)
+
+            print(weight.shape)
+            print(bias.shape)
+            counting = 0
+            for i in range(self.Gabor_Filter.numGaborFilters):
+                block_area = self.Gabor_Filter.GaborVisionArea(i)
+                print(block_area)
 
 class mrDAE_Classifier():
     def __init__(self):

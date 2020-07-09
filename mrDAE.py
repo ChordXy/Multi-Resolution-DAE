@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:30:39
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-08 22:05:36
+@LastEditTime: 2020-07-09 13:15:30
 @Description: Do not edit
 '''
 
@@ -44,6 +44,10 @@ def DataPreprocess(Train_X, Gabor_Filter, ImageBlockSize, numSamples, Whiten=Tru
 
     Image_Blocks, Whiten_Average, Whiten_U = utils.PCA_Whiten(Image_Blocks, Whiten)
 
+    if Whiten:
+        np.save('./Model_mrDAE/Whiten_Average.npy', Whiten_Average)
+        np.save('./Model_mrDAE/Whiten_MatrixU.npy', Whiten_U)
+
     del Train_Gabor
     gc.collect()
 
@@ -82,8 +86,8 @@ if __name__ == "__main__":
     Train_feature, Test_feature = mrDAE.get_mrDAE_Train_Test_Feature(Train_X, Test_X, isWhiten, Whiten_Average, Whiten_U)
 
     #* 删除mrDAE，释放内存
-    del mrDAE
-    gc.collect()
+    # del mrDAE
+    # gc.collect()
 
 
     #- 分类器
