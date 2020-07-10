@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:51:08
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-09 13:29:54
+@LastEditTime: 2020-07-10 21:08:09
 @Description: Do not edit
 '''
 
@@ -24,14 +24,16 @@ class MultiResolutionDAE():
         self.set_TiedAE_Training_Parameters()
 
     #- 初始化 AE 参数
-    def set_AE_Input_Data(self, Image_Blocks, Image_Blocks_Gabor, Gabor_Filter, Block=(11, 11)):
+    def set_Gabor_Filter(self, Gabor_Filter):
+        self.Gabor_Filter = Gabor_Filter
+        self.sumGaborVisionArea = self.Gabor_Filter.sumGaborVisionArea
+
+    def set_AE_Input_Data(self, Image_Blocks, Image_Blocks_Gabor, Block=(11, 11)):
         self.Main_Inputs = Image_Blocks
         self.Siamese_Inputs = Image_Blocks_Gabor
         self.numSamples = Image_Blocks.shape[0]
         self.ImageBlockSize = Block
         self.numPixels = Block[0] * Block[1]
-        self.Gabor_Filter = Gabor_Filter
-        self.sumGaborVisionArea = self.Gabor_Filter.sumGaborVisionArea
 
     def set_AE_Parameters(self, n_Hiddens=1024, reconstruction_reg=0.5, measurement_reg=0.1, sparse_reg=0.1, gaussian=0.02, batch_size=500, display_step=1):
         #* 隐含层神经元数量
@@ -395,7 +397,7 @@ class MultiResolutionDAE():
 
 
     #- 可视化
-    def Display_Reconstruction(self, numImages):
+    def Display_Reconstruction(self, numImages, Gabor_Filter):
         """显示重建结果
         
         Arguments:
@@ -422,29 +424,105 @@ class MultiResolutionDAE():
 
             DisplayReconstructionResult(batch_xs, output_val)
 
-    def Visualization(self, numDisplay=5, isTied=True):
-        tf.reset_default_graph()
-        saver = tf.train.Saver()
-        
-        if isTied:
-            encoder_weight = tf.get_variable('Tied_Weight')
-            encoder_bias = tf.get_variable('Tied_Encoder_Bias')
-        else:
-            encoder_weight = tf.get_variable('Encoder_Weight')
-            encoder_bias = tf.get_variable('Encoder_Bias')
+    def Visualization(self, num_Max_Display=1, num_Min_Display=1):
+        """权重可视化
 
+        Args:
+            num_Max_Display (int, optional): 最大权重显示图像数. Defaults to 1.
+            num_Min_Display (int, optional): 最小权重显示图像数. Defaults to 1.
+        """
+        tf.reset_default_graph()
+
+        siamese_weight = tf.get_variable('Siamese_Layer/Siamese_Weight', [self.sumGaborVisionArea, self.n_Hiddens])
+
+        saver = tf.train.Saver()
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
+            #* 载入模型
             saver.restore(sess, self.model_path)
-            weight = sess.run(encoder_weight)
-            bias = sess.run(encoder_bias)
+            #* 载入旁支权重
+            weight = sess.run(siamese_weight)
+        
+        #* 交换轴：由(inputs, hiddens) -> (hiddens, inputs)
+        weight = weight.transpose(1, 0)
+        #* 统计权重
+        sum_weight = weight.sum(1)
+        #* 权重排序
+        order_weight = np.argsort(sum_weight)
+            
+        #* 截取指定数据
+        max_show_sequence = order_weight[- num_Max_Display : ]
+        min_show_sequence = order_weight[0 : num_Min_Display]
+        max_show_weight = weight[max_show_sequence]
+        min_show_weight = weight[min_show_sequence]
+        
+        #* 显示图像
+        # 最大
+        for index, single_weight in enumerate(max_show_weight):
+            self.DisplayWeight(single_weight, "Max - {} Weight".format(len(max_show_sequence) - index), 4, 8)
+        # 最小
+        for index, single_weight in enumerate(min_show_weight):
+            self.DisplayWeight(single_weight, "Min - {} Weight".format(index + 1), 4, 8)    
 
-            print(weight.shape)
-            print(bias.shape)
-            counting = 0
-            for i in range(self.Gabor_Filter.numGaborFilters):
-                block_area = self.Gabor_Filter.GaborVisionArea(i)
-                print(block_area)
+    def DisplayWeight(self, Data, Display_Name, figure_row=None, figure_col=None):
+        """显示权重
+
+        Args:
+            Data ([type]): 权重
+            Display_Name ([type]): 名称
+        """
+        counting = 0
+        #* 每个不同大小感受野的数据
+        Images = []
+        #* 感受野大小
+        block_len = []
+        for i in range(self.Gabor_Filter.numGaborFilters):
+            #* 提取感受野面积
+            block_area = self.Gabor_Filter.GaborVisionArea(i)
+            #* 按顺序提取权重
+            Images.append(Data[counting : counting + block_area])
+            #* 存入感受野边长
+            block_len.append(int(math.sqrt(block_area)))
+            #* 长度计量
+            counting += block_area
+        
+        #* 感受野大小集合
+        Images_Status = list(set(block_len))
+        for index, elem in enumerate(Images_Status):
+            #* 新建图像窗口
+            plt.figure(Display_Name + ' Block {} * {}'.format(elem, elem))
+            #* 找到当前感受野大小的索引
+            all_same_elem_index = [index for index in range(len(block_len)) if block_len[index] == elem]
+
+            #* 在Images感受野权重中，提取出特定大小感受野的权重
+            display_data = []
+            for edx in all_same_elem_index:
+                display_data.append(Images[edx])
+            #* 总共需要显示的感受野图像数
+            figure_num = len(display_data)
+            #* 显示的图像横纵方向个数
+            if not (figure_col or figure_row):
+                figure_col = math.ceil(math.sqrt(figure_num))
+                figure_row = math.ceil(math.sqrt(figure_num))
+            
+            if elem == 1:
+                display_data = np.reshape(display_data, [figure_num])
+                plt.bar(range(figure_num), display_data, width=0.5)
+            else:
+                for i in range(figure_num):
+                    ax = plt.subplot(figure_row, figure_col, i + 1)
+                    #* 图像重新调整大小
+                    Image = np.reshape(display_data[i], [elem, elem])
+                    # ax.set_title("")
+                    plt.imshow(Image)
+                    
+                    #! 关闭坐标轴
+                    plt.xticks([])
+                    plt.yticks([])
+                    plt.axis('off')
+                        
+        plt.show()
+
 
 class mrDAE_Classifier():
     def __init__(self):
@@ -473,6 +551,7 @@ class mrDAE_Classifier():
         self.DropOut=dropout
 
         self.model_path = './Model_mrDAE_Classifier/mrDAE_Classification.ckpt'
+        self.max_keep_model_path = './Model_mrDAE_Classifier/mrDAE_Classification_Max.ckpt'
         
 
     #- MLP 分类网络
@@ -581,6 +660,7 @@ class mrDAE_Classifier():
 
         ############################  初始化参数  ############################
         saver = tf.train.Saver()
+        Max_Accuracy = 0
         
         ############################  训练网络  ############################
         with tf.Session() as sess:
@@ -597,9 +677,14 @@ class mrDAE_Classifier():
                     _, ls = sess.run([optimizer, loss], feed_dict={input_Feature : batch_xs_noise, y : batch_ys, dropout_keep_prob : self.DropOut, flag_training : True})
                     avg_loss += ls / totalbatch
                     Loggers.ProcessingBar(i + 1, totalbatch, isClear=True)
+                
+                f_acc = accuracy.eval(feed_dict = {input_Feature : self.Test_X, y : self.Test_Y, dropout_keep_prob : 1., flag_training : False})
+                #* 保存最大准确率模型
+                if f_acc > Max_Accuracy:
+                    saver.save(sess, self.max_keep_model_path)
+                    Max_Accuracy = f_acc
 
                 if (epoch + 1) % self.display_step == 0:
-                    f_acc = accuracy.eval(feed_dict = {input_Feature : self.Test_X, y : self.Test_Y, dropout_keep_prob : 1., flag_training : False})
                     learn_rate = sess.run(learning_rate)
                     message = "Epoch : " + '%04d' % (epoch + 1) + \
                             " Loss = " + "{:.5f}".format(avg_loss) + \
@@ -610,9 +695,9 @@ class mrDAE_Classifier():
 
             Loggers.TFprint.TFprint("Finished!")
             save_path = saver.save(sess, self.model_path)
-            Loggers.TFprint.TFprint("Model saved in file : " + save_path)
+
             #* 测试集结果
-            Loggers.TFprint.TFprint("Testing Accuracy : {}".format(accuracy.eval(feed_dict = {input_Feature : self.Test_X, y : self.Test_Y, dropout_keep_prob : 1., flag_training : False})))
+            Loggers.TFprint.TFprint("Max Testing Accuracy : {}".format(Max_Accuracy))
 
 
 #@ 附加函数

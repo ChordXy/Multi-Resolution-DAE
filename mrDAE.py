@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:30:39
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-09 13:15:30
+@LastEditTime: 2020-07-09 20:40:06
 @Description: Do not edit
 '''
 
@@ -45,6 +45,8 @@ def DataPreprocess(Train_X, Gabor_Filter, ImageBlockSize, numSamples, Whiten=Tru
     Image_Blocks, Whiten_Average, Whiten_U = utils.PCA_Whiten(Image_Blocks, Whiten)
 
     if Whiten:
+        if not os.path.exists('./Model_mrDAE'):
+            os.mkdir('./Model_mrDAE')
         np.save('./Model_mrDAE/Whiten_Average.npy', Whiten_Average)
         np.save('./Model_mrDAE/Whiten_MatrixU.npy', Whiten_U)
 
@@ -54,7 +56,8 @@ def DataPreprocess(Train_X, Gabor_Filter, ImageBlockSize, numSamples, Whiten=Tru
     return Image_Blocks, Image_Blocks_Gabor, Whiten_Average, Whiten_U
 
 
-if __name__ == "__main__":
+#- 训练网络
+def Build_Networks():
     #* 数据保存路径
     # Data_Preserve_Dir = './Data_Preprocessed/Gabored_Train.npy'
     # Image_Blocks_Dir = ['./Data_Preprocessed/ImageBlocks.npy', './Data_Preprocessed/ImageBlocksGabor.npy']
@@ -71,7 +74,8 @@ if __name__ == "__main__":
     #- mrDAE
     #* 初始化mrDAE参数
     mrDAE = utils.MultiResolutionDAE()
-    mrDAE.set_AE_Input_Data(Image_Blocks, Image_Blocks_Gabor, Gabor_Filter)
+    mrDAE.set_Gabor_Filter(Gabor_Filter)
+    mrDAE.set_AE_Input_Data(Image_Blocks, Image_Blocks_Gabor)
     mrDAE.set_AE_Parameters(n_Hiddens=1024, reconstruction_reg=0.5, measurement_reg=0.1, sparse_reg=0.1, gaussian=0.02, batch_size=500, display_step=1)
     mrDAE.set_TiedAE_Training_Parameters(epochs=650, lr_init=2e-1, lr_decay_step=4, lr_decay_rate=0.98)
 
@@ -86,8 +90,8 @@ if __name__ == "__main__":
     Train_feature, Test_feature = mrDAE.get_mrDAE_Train_Test_Feature(Train_X, Test_X, isWhiten, Whiten_Average, Whiten_U)
 
     #* 删除mrDAE，释放内存
-    # del mrDAE
-    # gc.collect()
+    del mrDAE
+    gc.collect()
 
 
     #- 分类器
@@ -98,6 +102,24 @@ if __name__ == "__main__":
     
     #* 训练mlp
     mlp.Build_ClassificationNetwork()
+
+
+#- 可视化
+def VisualizeSiamese():
+    #* Gabor 滤波器
+    Gabor_Filter = getGaborFilter()
+
+    #* 初始化mrDAE参数
+    mrDAE = utils.MultiResolutionDAE()
+    mrDAE.set_Gabor_Filter(Gabor_Filter)
+
+    #* 可视化
+    mrDAE.Visualization()
+
+
+if __name__ == "__main__":
+    Build_Networks()
+    # VisualizeSiamese()
     
 
     

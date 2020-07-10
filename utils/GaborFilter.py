@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 09:45:19
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-07 09:09:05
+@LastEditTime: 2020-07-10 21:05:40
 @Description: Gabor 濾波器
 '''
 
@@ -83,6 +83,7 @@ class Gabor():
         self.__Gabor_filter = None
         self.__Gabor_filter_size = []
         self.__Gabor_filter_area = []
+        self.__Gabor_filter_name = []
 
     #- 设置Gabor参数
     def setParam(self, ksize, Sigma, Theta, Lambda, Gamma, Psi = [0], RI_Part = 'r', ktype = np.float64):
@@ -146,6 +147,7 @@ class Gabor():
             lam = pow(2, 0.5 * (1 + lam))
             sig = 1 / np.pi * np.sqrt(np.log(2) / 2) * (pow(2, bd) + 1) / (pow(2, bd) - 1) * lam
             self.__Gabor_params.append([sig, the, lam, gam, 0])
+            self.__Gabor_filter_name.append("σ={} θ={} λ={} γ={}".format(sig, the, lam, gam))
         
         self.GenerateGaborFilter()
 
@@ -283,6 +285,17 @@ class Gabor():
         """
         return sum(self.__Gabor_filter_area)
 
+    @property
+    def GaborFilterName(self, index):
+        """滤波器名称
+
+        Args:
+            index (int): 索引
+
+        Returns:
+            str: 名称
+        """
+        return self.__Gabor_filter_name[index]
 
 #- 附加函数
 def DisplayGaborResult(Gabor_Images, figure_row=8, figure_col=16, cmap='gray'):
