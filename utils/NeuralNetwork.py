@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:51:08
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-10 21:08:09
+@LastEditTime: 2020-07-10 21:28:59
 @Description: Do not edit
 '''
 
@@ -459,10 +459,10 @@ class MultiResolutionDAE():
         #* 显示图像
         # 最大
         for index, single_weight in enumerate(max_show_weight):
-            self.DisplayWeight(single_weight, "Max - {} Weight".format(len(max_show_sequence) - index), 4, 8)
+            self.DisplayWeight(single_weight, "Max - {} Weight".format(len(max_show_sequence) - index), 8, 4)
         # 最小
         for index, single_weight in enumerate(min_show_weight):
-            self.DisplayWeight(single_weight, "Min - {} Weight".format(index + 1), 4, 8)    
+            self.DisplayWeight(single_weight, "Min - {} Weight".format(index + 1), 8, 4)    
 
     def DisplayWeight(self, Data, Display_Name, figure_row=None, figure_col=None):
         """显示权重
