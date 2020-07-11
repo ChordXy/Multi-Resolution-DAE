@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-04 22:31:39
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-06 23:14:02
+@LastEditTime: 2020-07-11 10:31:03
 @Description: 日志操作函数
 '''
 
@@ -12,6 +12,11 @@ import sys
 import os
 
 def getTimeInfo():
+    """获取时间信息
+
+    Returns:
+        str: 时间
+    """
     return "[" + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f') + "] "
 
 class TFprint():

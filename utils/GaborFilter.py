@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 09:45:19
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-10 21:05:40
+@LastEditTime: 2020-07-11 10:30:41
 @Description: Gabor 濾波器
 '''
 
@@ -356,6 +356,11 @@ def ShowDifference(kernel_size):
 
 #- 测试函数
 def Test_MNIST(GaborClass):
+    """测试MNIST数据集
+
+    Args:
+        GaborClass (class): Gabor类
+    """
     #! Batchsize = 200 时，总计花费 4288.520412 s。耗时在IO，显存与内存之间数据传输
     #! Batchsize = 5000 时，总计花费 106.699461 s。节约了40倍时间。
     #! Batchsize = 10000 时，显存不足
@@ -367,6 +372,11 @@ def Test_MNIST(GaborClass):
     DisplayGaborResult(result[0:1])
 
 def Test_Lena(GaborClass):
+    """测试Lena图像
+
+    Args:
+        GaborClass (class): Gabor滤波器类
+    """
     import cv2
     img = cv2.imread('./Images/Lena.jpg', 0)
     cv2.imshow('img', img)
