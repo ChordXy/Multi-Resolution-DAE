@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:30:39
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-15 23:21:20
+@LastEditTime: 2020-07-15 23:25:21
 @Description: Do not edit
 '''
 
@@ -18,8 +18,11 @@ def ParseInputs():
     Returns:
         class: 解包后的输入
     """
-    parser = argparse.ArgumentParser(description='Train mrDAE or Visualize Siamese Weights')
+    parser = argparse.ArgumentParser(description='Train mrDAE or Visualize Siamese Weights; Directory and name of Datasets')
     parser.add_argument("--Mode", type=int, default="0")
+    parser.add_argument("--DatasetDir", type=str, default="./Datasets/MNIST_Data")
+    parser.add_argument("--DatasetName", type=str, default="MNIST")
+    parser.add_argument("--DatasetMode", type=int, default=0)
     args = parser.parse_args()
     return args
 
@@ -101,7 +104,7 @@ def DataPreprocess(Train_X, Gabor_Filter, ImageBlockSize, numSamples, Whiten=Tru
 
 
 #- 训练网络
-def Build_Networks():
+def Build_Networks(args):
     """训练网络
     """
     #* 数据保存路径
@@ -113,7 +116,7 @@ def Build_Networks():
     #* Gabor 滤波器
     Gabor_Filter = getGaborFilter()
     #* 载入数据
-    Train_X, Train_Y, Test_X, Test_Y = Load_Data("./Datasets/MNIST_Data", "MNIST")
+    Train_X, Train_Y, Test_X, Test_Y = Load_Data(args.DatasetDir, args.DatasetName, args.DatasetMode)
     #* 截取图像块、数据预处理
     Image_Blocks, Image_Blocks_Gabor, Whiten_Average, Whiten_U = DataPreprocess(Train_X, Gabor_Filter, (11, 11), 400000, isWhiten)
     
@@ -169,7 +172,7 @@ if __name__ == "__main__":
     args = ParseInputs()
 
     if args.Mode == 0:
-        Build_Networks()
+        Build_Networks(args)
     else:
         VisualizeSiamese()
     
