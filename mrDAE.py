@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:30:39
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-11 10:29:41
+@LastEditTime: 2020-07-15 23:21:20
 @Description: Do not edit
 '''
 
@@ -42,18 +42,19 @@ def getGaborFilter():
     Gabor_Filter.setParam(ksize, Theta, Lambda, Gamma, Beta, RI_Part)
     return Gabor_Filter
 
-def Load_Data(data_dir, data_name):
+def Load_Data(data_dir, data_name, mode):
     """读取数据集
 
     Args:
         data_dir (str): 数据集路径
         data_name (str): 数据集名称
+        mode (int): 数据集模式 0：MNIST， FashionMNIST   1：SVHN
 
     Returns:
         array: 数据集
     """
     #* 读取数据集
-    return utils.Preprocess_Raw_Data(data_dir, data_name, True, True)
+    return utils.Preprocess_Raw_Data(data_dir, data_name, mode, True, True)
 
 def DataPreprocess(Train_X, Gabor_Filter, ImageBlockSize, numSamples, Whiten=True, saveImages=None, loadImages=None, saveBlocks=None, loadBlocks=None, batchsize=5000):
     """数据集预处理：对图像全图Gabor滤波 -> 随机采样指定大小图像 -> PCA白化

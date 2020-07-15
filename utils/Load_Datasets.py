@@ -2,11 +2,12 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:34:36
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-06 13:24:40
+@LastEditTime: 2020-07-15 23:19:53
 @Description: 读取数据集
 '''
 
 import matplotlib.pyplot as plt
+import scipy.io as sio
 import numpy as np
 import Loggers
 import struct
@@ -44,13 +45,31 @@ def Load_MNIST_Like_Dataset(Dataset_folder):
     
     return x_train, y_train, x_test, y_test
 
-def Preprocess_Raw_Data(dataset_root, Data_Name=" ", one_hot=False, normalization=False):
+def Load_SVHN_Dataset(Dataset_folder):
+    """读取SVHN数据
+
+    Args:
+        Dataset_folder (str): 路径
+    """
+    def load_svhn_data(Mat_file):
+        data = sio.loadmat(Mat_file)
+        x_data = np.transpose(data['X'], [3, 0, 1, 2])
+        y_data = data['y']
+        x_data_gray = np.round(np.dot(x_data, [0.299, 0.587, 0.114])).astype(np.uint8)
+        return x_data_gray, y_data
+
+    x_train, y_train = load_svhn_data(os.path.join(Dataset_folder, 'train_32x32.mat'))
+    x_test, y_test = load_svhn_data(os.path.join(Dataset_folder, 'test_32x32.mat'))
+    return x_train, y_train, x_test, y_test
+
+def Preprocess_Raw_Data(dataset_root, Data_Name=" ", mode=0, one_hot=False, normalization=False):
     """数据预处理
     
     Arguments:
         dataset_root {string} -- 数据路径
     
     Keyword Arguments:
+        mode {int} -- 模式，0：mnist, Fashion-mnist  1：SVHN (default: {0})
         one_hot {bool} -- 是否进行One_Hot编码 (default: {False})
         normalization {bool} -- 是否归一化数据 (default: {False})
     
@@ -62,7 +81,10 @@ def Preprocess_Raw_Data(dataset_root, Data_Name=" ", one_hot=False, normalizatio
     Loggers.TFprint.TFprint("Loading {}Data...".format(Data_Name))
 
     #* 自定读取
-    Train_X, Train_Y, Test_X, Test_Y = Load_MNIST_Like_Dataset(dataset_root)
+    if mode == 1:
+        Train_X, Train_Y, Test_X, Test_Y = Load_SVHN_Dataset(dataset_root)
+    elif mode == 0:
+        Train_X, Train_Y, Test_X, Test_Y = Load_MNIST_Like_Dataset(dataset_root)
     
     if one_hot:
         Train_Y = np.array([[1 if i==elem else 0 for i in range(10)] for elem in Train_Y], dtype=np.float32)
@@ -117,5 +139,8 @@ def DisplayDatasets(images, figure_row=8, figure_col=8, cmap='gray'):
     plt.show()
 
 if __name__ == "__main__":
-    Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets/Fashion_MNIST_Data", "Fashion-MNIST", True, True)
-    DisplayDatasets(Train_X[0:75])
+    Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets/Fashion_MNIST_Data", "Fashion-MNIST", 0, True, True)
+    DisplayDatasets(Train_X[0:5])
+
+    Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("D:\迅雷下载\数据集", "SVHN", 1, True, True)
+    DisplayDatasets(Train_X[0:5])
