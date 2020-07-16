@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:30:39
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-15 23:25:21
+@LastEditTime: 2020-07-17 01:24:17
 @Description: Do not edit
 '''
 
@@ -20,9 +20,9 @@ def ParseInputs():
     """
     parser = argparse.ArgumentParser(description='Train mrDAE or Visualize Siamese Weights; Directory and name of Datasets')
     parser.add_argument("--Mode", type=int, default="0")
-    parser.add_argument("--DatasetDir", type=str, default="./Datasets/MNIST_Data")
-    parser.add_argument("--DatasetName", type=str, default="MNIST")
-    parser.add_argument("--DatasetMode", type=int, default=0)
+    parser.add_argument("--DefaultPath", type=str, default="./Datasets")
+    parser.add_argument("--Dataset", type=str, default="MNIST")
+    parser.add_argument("--LackOfMemory", type=bool, default=False)
     args = parser.parse_args()
     return args
 
@@ -45,7 +45,7 @@ def getGaborFilter():
     Gabor_Filter.setParam(ksize, Theta, Lambda, Gamma, Beta, RI_Part)
     return Gabor_Filter
 
-def Load_Data(data_dir, data_name, mode):
+def Load_Data(args):
     """读取数据集
 
     Args:
@@ -57,9 +57,9 @@ def Load_Data(data_dir, data_name, mode):
         array: 数据集
     """
     #* 读取数据集
-    return utils.Preprocess_Raw_Data(data_dir, data_name, mode, True, True)
+    return utils.Preprocess_Raw_Data(args.DefaultPath, args.Dataset, True, True)
 
-def DataPreprocess(Train_X, Gabor_Filter, ImageBlockSize, numSamples, Whiten=True, saveImages=None, loadImages=None, saveBlocks=None, loadBlocks=None, batchsize=5000):
+def DataPreprocess(Train_X, Gabor_Filter, ImageBlockSize, numSamples, Whiten=True, SyncSampling=False, saveImages=None, loadImages=None, saveBlocks=None, loadBlocks=None, batchsize=5000):
     """数据集预处理：对图像全图Gabor滤波 -> 随机采样指定大小图像 -> PCA白化
 
     Args:
@@ -77,18 +77,26 @@ def DataPreprocess(Train_X, Gabor_Filter, ImageBlockSize, numSamples, Whiten=Tru
     Returns:
         array: 图像块，图像块对应Gabor，白化均值，白化矩阵
     """
-    #* Gabor图像
-    if loadImages:
-        Train_Gabor = utils.LoadGaborImages(loadImages)
-    else:
-        Train_Gabor = utils.GaborAllImages(Gabor_Filter, Train_X, batchsize=batchsize, isSavingData=saveImages)
+    #* 如果内存充足，可以一次性保存Gabor滤波结果
+    if not SyncSampling:
+        #* Gabor图像
+        if loadImages:
+            Train_Gabor = utils.LoadGaborImages(loadImages)
+        else:
+            Train_Gabor = utils.GaborAllImages(Gabor_Filter, Train_X, batchsize=batchsize, isSavingData=saveImages)
 
-    #* 图像采样
-    if loadBlocks:
-        Image_Blocks, Image_Blocks_Gabor = utils.LoadRandomImageBlocks(loadBlocks)
+        #* 图像采样
+        if loadBlocks:
+            Image_Blocks, Image_Blocks_Gabor = utils.LoadRandomImageBlocks(loadBlocks)
+        else:
+            Image_Blocks, Image_Blocks_Gabor = utils.RandomSamplingImageBlocks(Train_X, Train_Gabor, Gabor_Filter, ImageBlockSize, numSamples, isSavingData=saveBlocks)
+            del Train_Gabor
+            gc.collect()
     else:
-        Image_Blocks, Image_Blocks_Gabor = utils.RandomSamplingImageBlocks(Train_X, Train_Gabor, Gabor_Filter, ImageBlockSize, numSamples, isSavingData=saveBlocks)
+        #* 如果内存不足，无法一次性完成
+        Image_Blocks, Image_Blocks_Gabor = utils.SyncSamplingImageBlocks(Train_X, Gabor_Filter, ImageBlockSize, numSamples, isSavingData=saveBlocks)
 
+    #* 获取 PCA 白化均值与变换矩阵，并保存
     Image_Blocks, Whiten_Average, Whiten_U = utils.PCA_Whiten(Image_Blocks, Whiten)
 
     if Whiten:
@@ -96,9 +104,6 @@ def DataPreprocess(Train_X, Gabor_Filter, ImageBlockSize, numSamples, Whiten=Tru
             os.mkdir('./Model_mrDAE')
         np.save('./Model_mrDAE/Whiten_Average.npy', Whiten_Average)
         np.save('./Model_mrDAE/Whiten_MatrixU.npy', Whiten_U)
-
-    del Train_Gabor
-    gc.collect()
 
     return Image_Blocks, Image_Blocks_Gabor, Whiten_Average, Whiten_U
 
@@ -116,9 +121,9 @@ def Build_Networks(args):
     #* Gabor 滤波器
     Gabor_Filter = getGaborFilter()
     #* 载入数据
-    Train_X, Train_Y, Test_X, Test_Y = Load_Data(args.DatasetDir, args.DatasetName, args.DatasetMode)
+    Train_X, Train_Y, Test_X, Test_Y = Load_Data(args)
     #* 截取图像块、数据预处理
-    Image_Blocks, Image_Blocks_Gabor, Whiten_Average, Whiten_U = DataPreprocess(Train_X, Gabor_Filter, (11, 11), 400000, isWhiten)
+    Image_Blocks, Image_Blocks_Gabor, Whiten_Average, Whiten_U = DataPreprocess(Train_X, Gabor_Filter, (11, 11), 400000, isWhiten, args.LackOfMemory)
     
     #- mrDAE
     #* 初始化mrDAE参数

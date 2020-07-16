@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:29:17
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-07 01:06:49
+@LastEditTime: 2020-07-17 01:27:56
 @Description: Do not edit
 '''
 
@@ -61,7 +61,6 @@ def RandomSamplingImageBlocks(Images, Images_Gabor, Gabor_Filter, ImageBlockSize
     
     Keyword Arguments:
         isSavingData {string} -- 是否需要保存，需要保存图像块，则输入文件名 '*.npy' (default: {None})
-        isLog {int} -- 是否需要打log {default:{0}}
     
     Returns:
         np.array -- 形状 [numSample, Block_rows * Block_cols] 的图像块数组
@@ -216,6 +215,84 @@ def LoadGaborImages(filename):
     train = np.load(filename)
     Loggers.PrintLog("Loading Gabored Images Done!")
     return train
+
+
+#@ 同步随机采样： 选取需要采样图像及其位置，对该组图像Gabor滤波，再进行采样
+def SyncSamplingImageBlocks(Images, Gabor_Filter, ImageBlockSize, numSample, batchsize=1000, method='SAME', isSavingData=None):
+    """同步随机采样图像块，用于自编码器训练。 将 Gabor 卷积和采样放在一起
+    
+    Arguments:
+        Images {np.array[numImages, rows, cols]} -- 需要采样的图像
+        Gabor_Filter {class} -- Gabor类
+        ImageBlockSize {tuple} -- 图像块大小，必须是tuple类型
+        numSample {int} -- 采样的图像块数量
+    
+    Keyword Arguments:
+        batchsize {int} -- 每次送入GPU进行卷积的batch大小，视GPU显存大小而定 {default:{1000}}
+        method {str} -- 卷积方式 (default: {'same'})
+        isSavingData {string} -- 是否需要保存，需要保存图像块，则输入文件名 '*.npy' (default: {None})
+    
+    Returns:
+        np.array -- 形状 [numSample, Block_rows * Block_cols] 的图像块数组
+        np.array -- 形状 [numSample, sumGaborVisionArea] 的图像块Gabor数组
+    """
+    tsg = Loggers.TFprint.TFprint("Image Blocks and Gabor Images Capturing...")
+
+    #* 参数初始化
+    numImages, image_rows, image_cols = Images.shape
+    block_rows, block_cols = ImageBlockSize
+    half_block_rows, half_block_cols = block_rows // 2, block_cols // 2
+    #* 预定义返回数组
+    Image_Block = np.zeros([numSample, block_rows, block_cols])
+    Image_Block_Gabor = np.zeros([numSample, Gabor_Filter.sumGaborVisionArea])
+
+    #* 随机生成选取的图片序号
+    num_CaptureImage = np.random.randint(numImages, size=[numSample])
+    for index, NumberOfBlocks in enumerate(num_CaptureImage):
+        #- 提取原图像
+        #* 获取第n个图片及其Gabor图像
+        Selected_Image = Images[NumberOfBlocks, :, :]
+        #* 提取合法区域内的图像
+        Image_In_Range = Selected_Image[half_block_rows : image_rows - half_block_rows, half_block_cols : image_cols - half_block_cols]
+        #* 获取合法区域内非零点坐标
+        nonZero_Position = Image_In_Range.nonzero()
+        #* 在合法坐标内随机选择一对坐标
+        Selected_Coordinate = np.random.randint(len(nonZero_Position[0]))
+        #* 获取原图上的坐标
+        Selected_x = nonZero_Position[0][Selected_Coordinate] + half_block_cols
+        Selected_y = nonZero_Position[1][Selected_Coordinate] + half_block_rows
+        #* 截取图像，存入数组
+        Image_Block[index] = Selected_Image[Selected_y - half_block_rows : Selected_y + half_block_rows + 1, Selected_x - half_block_cols: Selected_x + half_block_cols + 1]
+
+        #- 提取图像块对应的Gabor图像（感受区域）
+        Selected_Image_Gabor = Images_Gabor[NumberOfBlocks, :, :, :]
+        concat_result = np.array([])
+        for i in range(Gabor_Filter.numGaborFilters):
+            Single_Image_Block_Gabor = Selected_Image_Gabor[i, 
+                                                            Selected_y - Gabor_Filter.GaborVision(i) : Selected_y + Gabor_Filter.GaborVision(i) + 1,
+                                                            Selected_x - Gabor_Filter.GaborVision(i) : Selected_x + Gabor_Filter.GaborVision(i) + 1 ]
+            Single_Image_Block_Gabor = np.reshape(Single_Image_Block_Gabor, Gabor_Filter.GaborVisionArea(i))
+            concat_result = np.concatenate((concat_result, Single_Image_Block_Gabor))
+        Image_Block_Gabor[index] = concat_result
+
+        #- 显示日志信息
+        Loggers.ProcessingBar(index + 1, numSample, CompleteLog='')
+
+    #- 调整形状，将Image_Block 从 [numSample, block_rows, block_cols] 转成 [numSample, block_rows * block_cols]
+    Image_Block = np.reshape(Image_Block, [numSample, block_rows * block_cols])
+
+    Loggers.TFprint.TFprint("Image Blocks and Gabor Images Capturing Done!", tsg)
+
+    if isSavingData:
+        #! 保存成文件
+        Loggers.PrintLog("Saving Image Blocks...")
+        np.save(isSavingData[0], Image_Block)
+        Loggers.PrintLog("Saving Image Blocks Done!")
+
+        Loggers.PrintLog("Saving Gabor images...")
+        np.save(isSavingData[1], Image_Block_Gabor)
+        Loggers.PrintLog("Saving Gabor images Done!")
+    return Image_Block, Image_Block_Gabor
 
 
 if __name__ == "__main__":
