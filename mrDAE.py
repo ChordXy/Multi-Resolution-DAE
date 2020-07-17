@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:30:39
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-17 01:24:17
+@LastEditTime: 2020-07-17 17:58:51
 @Description: Do not edit
 '''
 
@@ -19,12 +19,26 @@ def ParseInputs():
         class: 解包后的输入
     """
     parser = argparse.ArgumentParser(description='Train mrDAE or Visualize Siamese Weights; Directory and name of Datasets')
-    parser.add_argument("--Mode", type=int, default="0")
-    parser.add_argument("--DefaultPath", type=str, default="./Datasets")
-    parser.add_argument("--Dataset", type=str, default="MNIST")
-    parser.add_argument("--LackOfMemory", type=bool, default=False)
+    parser.add_argument("-m", "--Mode", type=int, default="0")
+    parser.add_argument("-p", "--DefaultPath", type=str, default="./Datasets")
+    parser.add_argument("-d", "--Dataset", type=str, default="MNIST", required=True)
+    parser.add_argument("-l", "--LackOfMemory", type=bool, default=False)
+    parser.add_argument("-i", "--TFInfo", type=int, default=0)
+    parser.add_argument("-g", "--GPUs", type=str, default="")
     args = parser.parse_args()
     return args
+
+def AnalyzeEnviroment(args):
+    """系统参数配置
+
+    Args:
+        args (class): 输入参数
+    """
+    #* 屏蔽 Tensorflow Debug信息   0：不屏蔽  1：屏蔽INFO  2:屏蔽INFO、WARNING  3、屏蔽INFO、WARNING、ERROR   
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(args.TFInfo)
+    if args.GPUs:
+        os.environ["CUDA_VISIBLE_DEVICES"] = args.GPUs
+    
 
 def getGaborFilter():
     """生成Gabor滤波器类
@@ -94,7 +108,7 @@ def DataPreprocess(Train_X, Gabor_Filter, ImageBlockSize, numSamples, Whiten=Tru
             gc.collect()
     else:
         #* 如果内存不足，无法一次性完成
-        Image_Blocks, Image_Blocks_Gabor = utils.SyncSamplingImageBlocks(Train_X, Gabor_Filter, ImageBlockSize, numSamples, isSavingData=saveBlocks)
+        Image_Blocks, Image_Blocks_Gabor = utils.SyncSamplingImageBlocks(Train_X, Gabor_Filter, ImageBlockSize, numSamples, 5000, 1000, "SAME", saveBlocks, args)
 
     #* 获取 PCA 白化均值与变换矩阵，并保存
     Image_Blocks, Whiten_Average, Whiten_U = utils.PCA_Whiten(Image_Blocks, Whiten)
@@ -131,7 +145,7 @@ def Build_Networks(args):
     mrDAE.set_Gabor_Filter(Gabor_Filter)
     mrDAE.set_AE_Input_Data(Image_Blocks, Image_Blocks_Gabor)
     mrDAE.set_AE_Parameters(n_Hiddens=1024, reconstruction_reg=0.5, measurement_reg=0.1, sparse_reg=0.1, gaussian=0.02, batch_size=500, display_step=1)
-    mrDAE.set_TiedAE_Training_Parameters(epochs=650, lr_init=2e-1, lr_decay_step=4, lr_decay_rate=0.98)
+    mrDAE.set_TiedAE_Training_Parameters(epochs=500, lr_init=2e-1, lr_decay_step=4, lr_decay_rate=0.98)
 
     #* 训练mrDAE
     mrDAE.Build_TiedAutoEncoderNetwork()
@@ -175,6 +189,7 @@ def VisualizeSiamese():
 
 if __name__ == "__main__":
     args = ParseInputs()
+    AnalyzeEnviroment(args)
 
     if args.Mode == 0:
         Build_Networks(args)

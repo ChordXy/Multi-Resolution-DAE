@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:29:17
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-17 10:29:02
+@LastEditTime: 2020-07-17 17:58:35
 @Description: Do not edit
 '''
 
@@ -175,7 +175,7 @@ def PCA_Whiten(Data, isWhiten):
 
 
 #@ 全图Gabor变换
-def GaborAllImages(Gabor_Filter, train, batchsize=1000, method='SAME', isSavingData=None):
+def GaborAllImages(Gabor_Filter, train, batchsize=1000, method='SAME', isSavingData=None, isProcessingBar=True):
     """对所有的图像进行Gabor变换
     
     Arguments:
@@ -187,11 +187,12 @@ def GaborAllImages(Gabor_Filter, train, batchsize=1000, method='SAME', isSavingD
         batchsize {int} -- 每次送入GPU进行卷积的batch大小，视GPU显存大小而定 {default:{1000}}
         method {str} -- 卷积方式 (default: {'same'})
         isSavingData {str} -- 是否保存数据 (default: {None})
+        isProcessingBar {bool} -- 是否需要进度条 (default: {True})
     
     Returns:
         np.array[numBlocks, numFilters, rows, cols] -- 返回值
     """
-    train_gabor = Gabor_Filter.ConvoluteImages(train, batchsize=batchsize, method=method)
+    train_gabor = Gabor_Filter.ConvoluteImages(train, batchsize=batchsize, method=method, isProcessingBar=isProcessingBar)
     train_gabor = train_gabor.transpose(0, 3, 1, 2)
 
     if isSavingData:
@@ -218,7 +219,7 @@ def LoadGaborImages(filename):
 
 
 #@ 同步随机采样： 选取需要采样图像及其位置，对该组图像Gabor滤波，再进行采样
-def SyncSamplingImageBlocks(Images, Gabor_Filter, ImageBlockSize, numSample, SampleCapacity=5000, batchsize=1000, method='SAME', isSavingData=None):
+def SyncSamplingImageBlocks(Images, Gabor_Filter, ImageBlockSize, numSample, SampleCapacity=5000, batchsize=1000, method='SAME', isSavingData=None, args=None):
     """同步随机采样图像块，用于自编码器训练。 将 Gabor 卷积和采样放在一起
     
     Arguments:
@@ -232,7 +233,8 @@ def SyncSamplingImageBlocks(Images, Gabor_Filter, ImageBlockSize, numSample, Sam
         batchsize {int} -- 每次送入GPU进行卷积的batch大小，视GPU显存大小而定 {default:{1000}}
         method {str} -- 卷积方式 (default: {'same'})
         isSavingData {string} -- 是否需要保存，需要保存图像块，则输入文件名 '*.npy' (default: {None})
-    
+        args {string} -- 参数 (default: {None})
+        
     Returns:
         np.array -- 形状 [numSample, Block_rows * Block_cols] 的图像块数组
         np.array -- 形状 [numSample, sumGaborVisionArea] 的图像块Gabor数组
@@ -252,13 +254,16 @@ def SyncSamplingImageBlocks(Images, Gabor_Filter, ImageBlockSize, numSample, Sam
     total_batch = numSample // SampleCapacity
     SampleIndex = 0
 
-    for sbatch in total_batch:
+    #* 屏蔽 Tensorflow Debug信息
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
+
+    for sbatch in range(total_batch):
         #* 获取需要处理的图像
         Images_To_Capture = []
         for index in range(sbatch * SampleCapacity, (sbatch + 1) * SampleCapacity):
             Images_To_Capture.append(Images[num_CaptureImage[index], :, :])
         #* 获取这些图像的Gabor图像
-        Images_Gabor = GaborAllImages(Gabor_Filter, Images_To_Capture, batchsize, method)
+        Images_Gabor = GaborAllImages(Gabor_Filter, Images_To_Capture, batchsize, method, isProcessingBar=False)
 
         for Selected_Image, Selected_Image_Gabor in zip(Images_To_Capture, Images_Gabor):
             #* 提取合法区域内的图像
@@ -301,7 +306,8 @@ def SyncSamplingImageBlocks(Images, Gabor_Filter, ImageBlockSize, numSample, Sam
         Loggers.PrintLog("Saving Gabor images...")
         np.save(isSavingData[1], Image_Block_Gabor)
         Loggers.PrintLog("Saving Gabor images Done!")
-        
+    
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(args.TFInfo)
     return Image_Block, Image_Block_Gabor
 
 

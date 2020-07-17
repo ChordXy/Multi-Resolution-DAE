@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 09:45:19
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-11 10:30:41
+@LastEditTime: 2020-07-17 17:52:47
 @Description: Gabor 濾波器
 '''
 
@@ -194,20 +194,24 @@ class Gabor():
         Loggers.TFprint.TFprint("Generating Gabor Filters Done!")
 
     #- 利用生成的Gabor滤波器卷积图像
-    def ConvoluteImages(self, Images, batchsize=5000, method='SAME'):
+    def ConvoluteImages(self, Images, batchsize=5000, method='SAME', isProcessingBar=True):
         """利用生成的Gabor滤波器组对图像进行卷积
         
         Arguments:
             Images {np.array[numImages, rows, cols]} -- 图像
 
         Keyword Arguments:
-            method {str} -- 卷积方法 (default: {True})
+            method {str} -- 卷积方法 (default: {'SAME'})
+            isProcessingBar {bool} -- 是否需要进度条 (default: {True})
         
         Returns:
             np.array[numFilter, imageSize] -- 返回滤波后的图像组
         """
         #- 图像数据预处理
         #@ 如果图像是单通道数据，则添加一根轴，表明单通道；多通道则不需要。适配TensorFlow卷积中图像的格式
+        if type(Images)==list:
+            Images = np.array(Images)
+
         if len(Images.shape) == 3:
             Images = Images[:, :, :, np.newaxis]
 
@@ -229,7 +233,8 @@ class Gabor():
             tsg = Loggers.TFprint.TFprint("Convoluting Images...")
     
             for i in range(totalbatch):
-                Loggers.ProcessingBar(i + 1, totalbatch, CompleteLog='')
+                if isProcessingBar:
+                    Loggers.ProcessingBar(i + 1, totalbatch, CompleteLog='')
 
                 Selected_Images = Images[i * batchsize : (i + 1) * batchsize]
                 res = sess.run(conv, feed_dict={input_image:Selected_Images, input_filter:self.__Gabor_filter})
