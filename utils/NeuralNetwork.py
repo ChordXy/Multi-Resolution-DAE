@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:51:08
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-17 22:57:24
+@LastEditTime: 2020-07-17 23:04:25
 @Description: Do not edit
 '''
 
@@ -341,7 +341,7 @@ class MultiResolutionDAE():
                                                             isWhiten=isWhiten,
                                                             Whiten_Average=Whiten_Average,
                                                             Whiten_U=Whiten_U)
-                Encodered_Data[i * batch_size : min((i + 1) * batch_size, numData), :] = sess.run(avgpool_Reshaped, feed_dict = {input_Main : Splited_Image})
+                Encodered_Data[i * batch_size : min((i + 1) * batch_size, numData), :] = sess.run(avgpool_Reshaped, feed_dict = {input_Main : Splited_Image, input_Size : Splited_Image.shape[0]})
                 Loggers.ProcessingBar(i + 1, totalbatch, CompleteLog='')
             Loggers.TFprint.TFprint("Extracting High Dimensional Features Done!", tsg)
         return Encodered_Data
