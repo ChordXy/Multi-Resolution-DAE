@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:29:17
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-17 17:58:35
+@LastEditTime: 2020-07-17 18:09:22
 @Description: Do not edit
 '''
 
@@ -10,6 +10,7 @@ import GaborFilter, Load_Datasets, Loggers
 import tensorflow as tf
 import numpy as np
 import math
+import os
 
 
 #@ 数据采样，单张图片全采样，用于训练分类器
@@ -175,7 +176,7 @@ def PCA_Whiten(Data, isWhiten):
 
 
 #@ 全图Gabor变换
-def GaborAllImages(Gabor_Filter, train, batchsize=1000, method='SAME', isSavingData=None, isProcessingBar=True):
+def GaborAllImages(Gabor_Filter, train, batchsize=1000, method='SAME', isSavingData=None, isLogInfo=True):
     """对所有的图像进行Gabor变换
     
     Arguments:
@@ -192,7 +193,7 @@ def GaborAllImages(Gabor_Filter, train, batchsize=1000, method='SAME', isSavingD
     Returns:
         np.array[numBlocks, numFilters, rows, cols] -- 返回值
     """
-    train_gabor = Gabor_Filter.ConvoluteImages(train, batchsize=batchsize, method=method, isProcessingBar=isProcessingBar)
+    train_gabor = Gabor_Filter.ConvoluteImages(train, batchsize=batchsize, method=method, isLogInfo=isLogInfo)
     train_gabor = train_gabor.transpose(0, 3, 1, 2)
 
     if isSavingData:
@@ -263,7 +264,7 @@ def SyncSamplingImageBlocks(Images, Gabor_Filter, ImageBlockSize, numSample, Sam
         for index in range(sbatch * SampleCapacity, (sbatch + 1) * SampleCapacity):
             Images_To_Capture.append(Images[num_CaptureImage[index], :, :])
         #* 获取这些图像的Gabor图像
-        Images_Gabor = GaborAllImages(Gabor_Filter, Images_To_Capture, batchsize, method, isProcessingBar=False)
+        Images_Gabor = GaborAllImages(Gabor_Filter, Images_To_Capture, batchsize, method, isLogInfo=False)
 
         for Selected_Image, Selected_Image_Gabor in zip(Images_To_Capture, Images_Gabor):
             #* 提取合法区域内的图像
