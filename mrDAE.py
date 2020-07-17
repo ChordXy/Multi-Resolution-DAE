@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:30:39
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-17 17:58:51
+@LastEditTime: 2020-07-17 22:53:34
 @Description: Do not edit
 '''
 
@@ -134,29 +134,33 @@ def Build_Networks(args):
     isWhiten = True
     #* Gabor 滤波器
     Gabor_Filter = getGaborFilter()
-    #* 载入数据
-    Train_X, Train_Y, Test_X, Test_Y = Load_Data(args)
-    #* 截取图像块、数据预处理
-    Image_Blocks, Image_Blocks_Gabor, Whiten_Average, Whiten_U = DataPreprocess(Train_X, Gabor_Filter, (11, 11), 400000, isWhiten, args.LackOfMemory)
-    
-    #- mrDAE
     #* 初始化mrDAE参数
     mrDAE = utils.MultiResolutionDAE()
     mrDAE.set_Gabor_Filter(Gabor_Filter)
-    mrDAE.set_AE_Input_Data(Image_Blocks, Image_Blocks_Gabor)
-    mrDAE.set_AE_Parameters(n_Hiddens=1024, reconstruction_reg=0.5, measurement_reg=0.1, sparse_reg=0.1, gaussian=0.02, batch_size=500, display_step=1)
-    mrDAE.set_TiedAE_Training_Parameters(epochs=500, lr_init=2e-1, lr_decay_step=4, lr_decay_rate=0.98)
+    #* 载入数据
+    Train_X, Train_Y, Test_X, Test_Y = Load_Data(args)
 
-    #* 训练mrDAE
-    mrDAE.Build_TiedAutoEncoderNetwork()
+    if args.Mode == 0:
+        #* 截取图像块、数据预处理
+        Image_Blocks, Image_Blocks_Gabor, Whiten_Average, Whiten_U = DataPreprocess(Train_X, Gabor_Filter, (11, 11), 400000, isWhiten, args.LackOfMemory)
+    
+        #- mrDAE
+        mrDAE.set_AE_Input_Data(Image_Blocks, Image_Blocks_Gabor)
+        mrDAE.set_AE_Parameters(n_Hiddens=1024, reconstruction_reg=0.5, measurement_reg=0.1, sparse_reg=0.1, gaussian=0.02, batch_size=500, display_step=1)
+        mrDAE.set_TiedAE_Training_Parameters(epochs=500, lr_init=2e-1, lr_decay_step=4, lr_decay_rate=0.98)
 
-    #* 删除mrDAE输入数据，释放内存
-    del Image_Blocks, Image_Blocks_Gabor
-    gc.collect()
+        #* 训练mrDAE
+        mrDAE.Build_TiedAutoEncoderNetwork()
 
-    #* 提取mrDAE特征
-    Train_feature, Test_feature = mrDAE.get_mrDAE_Train_Test_Feature(Train_X, Test_X, isWhiten, Whiten_Average, Whiten_U)
+        #* 删除mrDAE输入数据，释放内存
+        del Image_Blocks, Image_Blocks_Gabor
+        gc.collect()
 
+        #* 提取mrDAE特征
+        Train_feature, Test_feature = mrDAE.get_mrDAE_Train_Test_Feature(Train_X, Test_X, isWhiten, Whiten_Average, Whiten_U)
+    else:
+        Train_feature, Test_feature = mrDAE.get_mrDAE_Train_Test_Feature(Train_X, Test_X, isWhiten)
+        
     #* 删除mrDAE，释放内存
     del mrDAE
     gc.collect()
@@ -191,10 +195,10 @@ if __name__ == "__main__":
     args = ParseInputs()
     AnalyzeEnviroment(args)
 
-    if args.Mode == 0:
-        Build_Networks(args)
-    else:
+    if args.Mode == -1:
         VisualizeSiamese()
+    else:
+        Build_Networks(args)
     
 
     
