@@ -2,12 +2,11 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:29:17
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-17 22:06:04
+@LastEditTime: 2020-07-17 22:12:07
 @Description: Do not edit
 '''
 
 import GaborFilter, Load_Datasets, Loggers
-import tensorflow as tf
 import numpy as np
 import math
 import os
@@ -317,6 +316,7 @@ def SyncSamplingImageBlocks(Images, Gabor_Filter, ImageBlockSize, numSample, Sam
 
 
 if __name__ == "__main__":
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     #- 读取数据集
     Train_X, Train_Y, Test_X, Test_Y = Load_Datasets.Preprocess_Raw_Data("./Datasets", "MNIST", True, True)
 
@@ -333,7 +333,6 @@ if __name__ == "__main__":
     GaborClass.setParam(ksize, Theta, Lambda, Gamma, Beta, RI_Part)
 
 
-
     #- 图像块采样
     savefile_ImageBlocks = ['ImageBlocks.npy', 'ImageBlocksGabor.npy']
     ImageBlockSize = (11, 11)
@@ -347,7 +346,7 @@ if __name__ == "__main__":
     # Image_Blocks, Image_Blocks_Gabor = RandomSamplingImageBlocks(Train_X, Train_X_Gabor, GaborClass, ImageBlockSize, numSample)
 
     #* 同步采样图像块
-    # Image_Blocks, Image_Blocks_Gabor = SyncSamplingImageBlocks(Train_X, GaborClass, ImageBlockSize, numSample, 33)
+    Image_Blocks, Image_Blocks_Gabor = SyncSamplingImageBlocks(Train_X, GaborClass, ImageBlockSize, numSample, 33)
 
     #* 读取已保存的图像块
     # Image_Blocks, Image_Blocks_Gabor = LoadRandomImageBlocks(savefile_ImageBlocks)

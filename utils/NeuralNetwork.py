@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:51:08
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-11 10:31:54
+@LastEditTime: 2020-07-17 22:45:39
 @Description: Do not edit
 '''
 
@@ -157,10 +157,10 @@ class MultiResolutionDAE():
                 avg_loss = 0
                 for i in range(total_batch):
                     #* 提取每个Batch对应的数据
-                    batch_main = self.Main_Inputs[i * self.batch_size : (i + 1) * self.batch_size, :]
-                    batch_siamese = self.Siamese_Inputs[i * self.batch_size : (i + 1) * self.batch_size, :]
+                    batch_main = self.Main_Inputs[i * self.batch_size : min((i + 1) * self.batch_size, self.numSamples), :]
+                    batch_siamese = self.Siamese_Inputs[i * self.batch_size : min((i + 1) * self.batch_size, self.numSamples), :]
                     #* 加入噪声
-                    batch_main_noise = batch_main + self.gaussian * np.random.randn(self.batch_size, self.numPixels)
+                    batch_main_noise = batch_main + self.gaussian * np.random.randn(*batch_main.shape)
                     #* 训练网络
                     _, ls = sess.run([optimizer, loss], feed_dict={input_Main : batch_main_noise, input_Siamese : batch_siamese})
                     avg_loss += ls / total_batch
@@ -265,10 +265,10 @@ class MultiResolutionDAE():
                 avg_loss = 0
                 for i in range(total_batch):
                     #* 提取每个Batch对应的数据
-                    batch_main = self.Main_Inputs[i * self.batch_size : (i + 1) * self.batch_size, :]
-                    batch_siamese = self.Siamese_Inputs[i * self.batch_size : (i + 1) * self.batch_size, :]
+                    batch_main = self.Main_Inputs[i * self.batch_size : min((i + 1) * self.batch_size, self.numSamples), :]
+                    batch_siamese = self.Siamese_Inputs[i * self.batch_size : min((i + 1) * self.batch_size, self.numSamples), :]
                     #* 加入噪声
-                    batch_main_noise = batch_main + self.gaussian * np.random.randn(self.batch_size, self.numPixels)
+                    batch_main_noise = batch_main + self.gaussian * np.random.randn(*batch_main.shape)
                     #* 训练网络
                     _, ls = sess.run([optimizer, loss], feed_dict={input_Main : batch_main_noise, input_Siamese : batch_siamese})
                     avg_loss += ls / total_batch
@@ -314,17 +314,18 @@ class MultiResolutionDAE():
         Encodered_Data = np.zeros([numData, 4 * self.n_Hiddens])
 
         #* 输入
-        input_Main = tf.placeholder(tf.float32, [batch_size, numRow * numCol, self.numPixels])
+        input_Main = tf.placeholder(tf.float32, [None, numRow * numCol, self.numPixels])
+        input_Size = tf.placeholder(tf.int32)
         #* 改变形状，适应批量乘法
-        input_Main_Reshaped = tf.reshape(input_Main, [batch_size * numRow * numCol, self.numPixels])
+        input_Main_Reshaped = tf.reshape(input_Main, [input_Size * numRow * numCol, self.numPixels])
         #* 特征编码
         encoder_layer, _ = self.TiedEncoderDecoderLayer(input_Main_Reshaped, self.numPixels, self.n_Hiddens, tf.nn.leaky_relu, False)
         #* 变换形状
-        encoder_Reshaped = tf.reshape(encoder_layer, [batch_size, numRow, numCol, self.n_Hiddens])
+        encoder_Reshaped = tf.reshape(encoder_layer, [input_Size, numRow, numCol, self.n_Hiddens])
         #* 均值池化
         avgpool = tf.nn.avg_pool(encoder_Reshaped, ksize, stride, 'VALID')
         #* 变换形状，首尾拼接
-        avgpool_Reshaped = tf.reshape(avgpool, [batch_size, 4 * self.n_Hiddens])
+        avgpool_Reshaped = tf.reshape(avgpool, [input_Size, 4 * self.n_Hiddens])
 
         saver = tf.train.Saver()
 
@@ -334,13 +335,13 @@ class MultiResolutionDAE():
 
             tsg = Loggers.TFprint.TFprint("Extracting High Dimensional Features...")
             for i in range(totalbatch):
-                Splited_Image = Preprocess.Fully_Sampling(  Data[i * batch_size : (i + 1) * batch_size],
+                Splited_Image = Preprocess.Fully_Sampling(  Data[i * batch_size : min((i + 1) * batch_size, numData)],
                                                             self.Gabor_Filter,
                                                             self.ImageBlockSize,
                                                             isWhiten=isWhiten,
                                                             Whiten_Average=Whiten_Average,
                                                             Whiten_U=Whiten_U)
-                Encodered_Data[i * batch_size : (i + 1) * batch_size, :] = sess.run(avgpool_Reshaped, feed_dict = {input_Main : Splited_Image})
+                Encodered_Data[i * batch_size : min((i + 1) * batch_size, numData), :] = sess.run(avgpool_Reshaped, feed_dict = {input_Main : Splited_Image})
                 Loggers.ProcessingBar(i + 1, totalbatch, CompleteLog='')
             Loggers.TFprint.TFprint("Extracting High Dimensional Features Done!", tsg)
         return Encodered_Data
@@ -669,10 +670,10 @@ class mrDAE_Classifier():
                 avg_loss = 0
                 for i in range(totalbatch):
                     #* 提取每个Batch对应的数据
-                    batch_xs = self.Train_X[i * self.MLP_Batch_Size : (i + 1) * self.MLP_Batch_Size, :]
-                    batch_ys = self.Train_Y[i * self.MLP_Batch_Size : (i + 1) * self.MLP_Batch_Size, :]
+                    batch_xs = self.Train_X[i * self.MLP_Batch_Size : min((i + 1) * self.MLP_Batch_Size, self.MLP_numTrain), :]
+                    batch_ys = self.Train_Y[i * self.MLP_Batch_Size : min((i + 1) * self.MLP_Batch_Size, self.MLP_numTrain), :]
                     #* 加入噪声
-                    batch_xs_noise = batch_xs + self.MLP_gaussian * np.random.randn(self.MLP_Batch_Size, self.n_features)
+                    batch_xs_noise = batch_xs + self.MLP_gaussian * np.random.randn(*batch_xs.shape)
                     #* 训练网络
                     _, ls = sess.run([optimizer, loss], feed_dict={input_Feature : batch_xs_noise, y : batch_ys, dropout_keep_prob : self.DropOut, flag_training : True})
                     avg_loss += ls / totalbatch
