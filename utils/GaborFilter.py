@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 09:45:19
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-17 18:08:35
+@LastEditTime: 2020-07-17 21:57:24
 @Description: Gabor 濾波器
 '''
 
@@ -237,7 +237,7 @@ class Gabor():
                 if isLogInfo:
                     Loggers.ProcessingBar(i + 1, totalbatch, CompleteLog='')
 
-                Selected_Images = Images[i * batchsize : (i + 1) * batchsize]
+                Selected_Images = Images[i * batchsize : min((i + 1) * batchsize, numImages)]
                 res = sess.run(conv, feed_dict={input_image:Selected_Images, input_filter:self.__Gabor_filter})
                 if i == 0:
                     result = res
@@ -372,11 +372,11 @@ def Test_MNIST(GaborClass):
     #! Batchsize = 5000 时，总计花费 106.699461 s。节约了40倍时间。
     #! Batchsize = 10000 时，显存不足
     import Load_Datasets
-    Train_X, Train_Y, Test_X, Test_Y = Load_Datasets.Preprocess_Raw_Data("./Datasets/MNIST_Data", "MNIST", True, True)
-    result = GaborClass.ConvoluteImages(Test_X[0:1000], batchsize=50)
+    Train_X, Train_Y, Test_X, Test_Y = Load_Datasets.Preprocess_Raw_Data("./Datasets", "MNIST", True, True)
+    result = GaborClass.ConvoluteImages(Test_X[0:15], batchsize=20)
     result = result.transpose(0, 3, 1, 2)
     print(result.shape)
-    DisplayGaborResult(result[0:1])
+    DisplayGaborResult(result[0:2])
 
 def Test_Lena(GaborClass):
     """测试Lena图像

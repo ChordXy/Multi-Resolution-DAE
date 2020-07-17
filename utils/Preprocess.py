@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:29:17
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-17 18:09:22
+@LastEditTime: 2020-07-17 22:06:04
 @Description: Do not edit
 '''
 
@@ -252,16 +252,20 @@ def SyncSamplingImageBlocks(Images, Gabor_Filter, ImageBlockSize, numSample, Sam
 
     #* 随机生成选取的图片序号
     num_CaptureImage = np.random.randint(numImages, size=[numSample])
-    total_batch = numSample // SampleCapacity
+    total_batch = math.ceil(numSample / SampleCapacity)
     SampleIndex = 0
 
     #* 屏蔽 Tensorflow Debug信息
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
     for sbatch in range(total_batch):
+        #- 显示日志信息
+        Loggers.ProcessingBar(sbatch + 1, total_batch, CompleteLog='')
+
+        #- 数据处理
         #* 获取需要处理的图像
         Images_To_Capture = []
-        for index in range(sbatch * SampleCapacity, (sbatch + 1) * SampleCapacity):
+        for index in range(sbatch * SampleCapacity, min((sbatch + 1) * SampleCapacity, numSample)):
             Images_To_Capture.append(Images[num_CaptureImage[index], :, :])
         #* 获取这些图像的Gabor图像
         Images_Gabor = GaborAllImages(Gabor_Filter, Images_To_Capture, batchsize, method, isLogInfo=False)
@@ -290,9 +294,6 @@ def SyncSamplingImageBlocks(Images, Gabor_Filter, ImageBlockSize, numSample, Sam
             Image_Block_Gabor[SampleIndex] = concat_result
             SampleIndex += 1
 
-        #- 显示日志信息
-        Loggers.ProcessingBar(sbatch + 1, total_batch, CompleteLog='')
-
     #- 调整形状，将Image_Block 从 [numSample, block_rows, block_cols] 转成 [numSample, block_rows * block_cols]
     Image_Block = np.reshape(Image_Block, [numSample, block_rows * block_cols])
 
@@ -308,13 +309,16 @@ def SyncSamplingImageBlocks(Images, Gabor_Filter, ImageBlockSize, numSample, Sam
         np.save(isSavingData[1], Image_Block_Gabor)
         Loggers.PrintLog("Saving Gabor images Done!")
     
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(args.TFInfo)
+    if args:
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(args.TFInfo)
+    else:
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
     return Image_Block, Image_Block_Gabor
 
 
 if __name__ == "__main__":
     #- 读取数据集
-    Train_X, Train_Y, Test_X, Test_Y = Load_Datasets.Preprocess_Raw_Data("./Datasets/MNIST_Data", "MNIST", True, True)
+    Train_X, Train_Y, Test_X, Test_Y = Load_Datasets.Preprocess_Raw_Data("./Datasets", "MNIST", True, True)
 
     #- 生成Gabor滤波器
     ksize = (29, 29)
@@ -328,18 +332,22 @@ if __name__ == "__main__":
     GaborClass = GaborFilter.Gabor()
     GaborClass.setParam(ksize, Theta, Lambda, Gamma, Beta, RI_Part)
 
-    #- 对图像进行Gabor变换
-    Train_X_Gabor = GaborAllImages(GaborClass, Train_X, batchsize=5000)
-    Test_X_Gabor = GaborAllImages(GaborClass, Test_X, batchsize=5000)
+
 
     #- 图像块采样
     savefile_ImageBlocks = ['ImageBlocks.npy', 'ImageBlocksGabor.npy']
     ImageBlockSize = (11, 11)
-    numSamples = 400000
-
+    numSample = 400
+    
+    #- 对图像进行Gabor变换
+    # Train_X_Gabor = GaborAllImages(GaborClass, Train_X, batchsize=5000)
+    # Test_X_Gabor = GaborAllImages(GaborClass, Test_X, batchsize=5000)
     #* 自动采样图像块
-    # Image_Blocks, Image_Blocks_Gabor = RandomSamplingImageBlocks(Train_X, Train_X_Gabor, GaborClass, ImageBlockSize, numSamples, isSavingData=savefile_ImageBlocks, isLog=1000)
-    Image_Blocks, Image_Blocks_Gabor = RandomSamplingImageBlocks(Train_X, Train_X_Gabor, GaborClass, ImageBlockSize, numSamples)
+    # Image_Blocks, Image_Blocks_Gabor = RandomSamplingImageBlocks(Train_X, Train_X_Gabor, GaborClass, ImageBlockSize, numSample, isSavingData=savefile_ImageBlocks, isLog=1000)
+    # Image_Blocks, Image_Blocks_Gabor = RandomSamplingImageBlocks(Train_X, Train_X_Gabor, GaborClass, ImageBlockSize, numSample)
+
+    #* 同步采样图像块
+    # Image_Blocks, Image_Blocks_Gabor = SyncSamplingImageBlocks(Train_X, GaborClass, ImageBlockSize, numSample, 33)
 
     #* 读取已保存的图像块
     # Image_Blocks, Image_Blocks_Gabor = LoadRandomImageBlocks(savefile_ImageBlocks)
