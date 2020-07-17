@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:30:39
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-17 22:57:47
+@LastEditTime: 2020-07-17 23:00:58
 @Description: Do not edit
 '''
 
@@ -129,16 +129,18 @@ def Build_Networks(args):
     #* 数据保存路径
     # Data_Preserve_Dir = './Data_Preprocessed/Gabored_Train.npy'
     # Image_Blocks_Dir = ['./Data_Preprocessed/ImageBlocks.npy', './Data_Preprocessed/ImageBlocksGabor.npy']
-    
-    #- 初始化及预处理
+
+    #* 载入数据
+    Train_X, Train_Y, Test_X, Test_Y = Load_Data(args)
+    #* 白化
     isWhiten = True
     #* Gabor 滤波器
     Gabor_Filter = getGaborFilter()
     #* 初始化mrDAE参数
     mrDAE = utils.MultiResolutionDAE()
     mrDAE.Init_DAE(Gabor_Filter, (11, 11))
-    #* 载入数据
-    Train_X, Train_Y, Test_X, Test_Y = Load_Data(args)
+    mrDAE.set_AE_Parameters(n_Hiddens=1024, reconstruction_reg=0.5, measurement_reg=0.1, sparse_reg=0.1, gaussian=0.02, batch_size=500, display_step=1)
+    mrDAE.set_TiedAE_Training_Parameters(epochs=500, lr_init=2e-1, lr_decay_step=4, lr_decay_rate=0.98)
 
     if args.Mode == 0:
         #* 截取图像块、数据预处理
@@ -146,8 +148,6 @@ def Build_Networks(args):
     
         #- mrDAE
         mrDAE.set_AE_Input_Data(Image_Blocks, Image_Blocks_Gabor)
-        mrDAE.set_AE_Parameters(n_Hiddens=1024, reconstruction_reg=0.5, measurement_reg=0.1, sparse_reg=0.1, gaussian=0.02, batch_size=500, display_step=1)
-        mrDAE.set_TiedAE_Training_Parameters(epochs=500, lr_init=2e-1, lr_decay_step=4, lr_decay_rate=0.98)
 
         #* 训练mrDAE
         mrDAE.Build_TiedAutoEncoderNetwork()
