@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:29:17
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-17 01:27:56
+@LastEditTime: 2020-07-17 10:29:02
 @Description: Do not edit
 '''
 
@@ -218,7 +218,7 @@ def LoadGaborImages(filename):
 
 
 #@ 同步随机采样： 选取需要采样图像及其位置，对该组图像Gabor滤波，再进行采样
-def SyncSamplingImageBlocks(Images, Gabor_Filter, ImageBlockSize, numSample, batchsize=1000, method='SAME', isSavingData=None):
+def SyncSamplingImageBlocks(Images, Gabor_Filter, ImageBlockSize, numSample, SampleCapacity=5000, batchsize=1000, method='SAME', isSavingData=None):
     """同步随机采样图像块，用于自编码器训练。 将 Gabor 卷积和采样放在一起
     
     Arguments:
@@ -228,6 +228,7 @@ def SyncSamplingImageBlocks(Images, Gabor_Filter, ImageBlockSize, numSample, bat
         numSample {int} -- 采样的图像块数量
     
     Keyword Arguments:
+        SampleCapacity {int} -- 同步采样器一次性处理的图像数量 {default:{5000}}
         batchsize {int} -- 每次送入GPU进行卷积的batch大小，视GPU显存大小而定 {default:{1000}}
         method {str} -- 卷积方式 (default: {'same'})
         isSavingData {string} -- 是否需要保存，需要保存图像块，则输入文件名 '*.npy' (default: {None})
@@ -248,35 +249,43 @@ def SyncSamplingImageBlocks(Images, Gabor_Filter, ImageBlockSize, numSample, bat
 
     #* 随机生成选取的图片序号
     num_CaptureImage = np.random.randint(numImages, size=[numSample])
-    for index, NumberOfBlocks in enumerate(num_CaptureImage):
-        #- 提取原图像
-        #* 获取第n个图片及其Gabor图像
-        Selected_Image = Images[NumberOfBlocks, :, :]
-        #* 提取合法区域内的图像
-        Image_In_Range = Selected_Image[half_block_rows : image_rows - half_block_rows, half_block_cols : image_cols - half_block_cols]
-        #* 获取合法区域内非零点坐标
-        nonZero_Position = Image_In_Range.nonzero()
-        #* 在合法坐标内随机选择一对坐标
-        Selected_Coordinate = np.random.randint(len(nonZero_Position[0]))
-        #* 获取原图上的坐标
-        Selected_x = nonZero_Position[0][Selected_Coordinate] + half_block_cols
-        Selected_y = nonZero_Position[1][Selected_Coordinate] + half_block_rows
-        #* 截取图像，存入数组
-        Image_Block[index] = Selected_Image[Selected_y - half_block_rows : Selected_y + half_block_rows + 1, Selected_x - half_block_cols: Selected_x + half_block_cols + 1]
+    total_batch = numSample // SampleCapacity
+    SampleIndex = 0
 
-        #- 提取图像块对应的Gabor图像（感受区域）
-        Selected_Image_Gabor = Images_Gabor[NumberOfBlocks, :, :, :]
-        concat_result = np.array([])
-        for i in range(Gabor_Filter.numGaborFilters):
-            Single_Image_Block_Gabor = Selected_Image_Gabor[i, 
-                                                            Selected_y - Gabor_Filter.GaborVision(i) : Selected_y + Gabor_Filter.GaborVision(i) + 1,
-                                                            Selected_x - Gabor_Filter.GaborVision(i) : Selected_x + Gabor_Filter.GaborVision(i) + 1 ]
-            Single_Image_Block_Gabor = np.reshape(Single_Image_Block_Gabor, Gabor_Filter.GaborVisionArea(i))
-            concat_result = np.concatenate((concat_result, Single_Image_Block_Gabor))
-        Image_Block_Gabor[index] = concat_result
+    for sbatch in total_batch:
+        #* 获取需要处理的图像
+        Images_To_Capture = []
+        for index in range(sbatch * SampleCapacity, (sbatch + 1) * SampleCapacity):
+            Images_To_Capture.append(Images[num_CaptureImage[index], :, :])
+        #* 获取这些图像的Gabor图像
+        Images_Gabor = GaborAllImages(Gabor_Filter, Images_To_Capture, batchsize, method)
+
+        for Selected_Image, Selected_Image_Gabor in zip(Images_To_Capture, Images_Gabor):
+            #* 提取合法区域内的图像
+            Image_In_Range = Selected_Image[half_block_rows : image_rows - half_block_rows, half_block_cols : image_cols - half_block_cols]
+            #* 获取合法区域内非零点坐标
+            nonZero_Position = Image_In_Range.nonzero()
+            #* 在合法坐标内随机选择一对坐标
+            Selected_Coordinate = np.random.randint(len(nonZero_Position[0]))
+            #* 获取原图上的坐标
+            Selected_x = nonZero_Position[0][Selected_Coordinate] + half_block_cols
+            Selected_y = nonZero_Position[1][Selected_Coordinate] + half_block_rows
+            #* 截取图像，存入数组
+            Image_Block[SampleIndex] = Selected_Image[Selected_y - half_block_rows : Selected_y + half_block_rows + 1, Selected_x - half_block_cols: Selected_x + half_block_cols + 1]
+
+            #- 提取图像块对应的Gabor图像（感受区域）
+            concat_result = np.array([])
+            for i in range(Gabor_Filter.numGaborFilters):
+                Single_Image_Block_Gabor = Selected_Image_Gabor[i, 
+                                                                Selected_y - Gabor_Filter.GaborVision(i) : Selected_y + Gabor_Filter.GaborVision(i) + 1,
+                                                                Selected_x - Gabor_Filter.GaborVision(i) : Selected_x + Gabor_Filter.GaborVision(i) + 1 ]
+                Single_Image_Block_Gabor = np.reshape(Single_Image_Block_Gabor, Gabor_Filter.GaborVisionArea(i))
+                concat_result = np.concatenate((concat_result, Single_Image_Block_Gabor))
+            Image_Block_Gabor[SampleIndex] = concat_result
+            SampleIndex += 1
 
         #- 显示日志信息
-        Loggers.ProcessingBar(index + 1, numSample, CompleteLog='')
+        Loggers.ProcessingBar(sbatch + 1, total_batch, CompleteLog='')
 
     #- 调整形状，将Image_Block 从 [numSample, block_rows, block_cols] 转成 [numSample, block_rows * block_cols]
     Image_Block = np.reshape(Image_Block, [numSample, block_rows * block_cols])
@@ -292,6 +301,7 @@ def SyncSamplingImageBlocks(Images, Gabor_Filter, ImageBlockSize, numSample, bat
         Loggers.PrintLog("Saving Gabor images...")
         np.save(isSavingData[1], Image_Block_Gabor)
         Loggers.PrintLog("Saving Gabor images Done!")
+        
     return Image_Block, Image_Block_Gabor
 
 
