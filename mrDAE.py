@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:30:39
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-17 22:53:34
+@LastEditTime: 2020-07-17 22:57:47
 @Description: Do not edit
 '''
 
@@ -136,7 +136,7 @@ def Build_Networks(args):
     Gabor_Filter = getGaborFilter()
     #* 初始化mrDAE参数
     mrDAE = utils.MultiResolutionDAE()
-    mrDAE.set_Gabor_Filter(Gabor_Filter)
+    mrDAE.Init_DAE(Gabor_Filter, (11, 11))
     #* 载入数据
     Train_X, Train_Y, Test_X, Test_Y = Load_Data(args)
 

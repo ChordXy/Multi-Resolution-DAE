@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:51:08
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-17 22:45:39
+@LastEditTime: 2020-07-17 22:57:24
 @Description: Do not edit
 '''
 
@@ -24,16 +24,16 @@ class MultiResolutionDAE():
         self.set_TiedAE_Training_Parameters()
 
     #- 初始化 AE 参数
-    def set_Gabor_Filter(self, Gabor_Filter):
+    def Init_DAE(self, Gabor_Filter, Block=(11, 11)):
         self.Gabor_Filter = Gabor_Filter
         self.sumGaborVisionArea = self.Gabor_Filter.sumGaborVisionArea
+        self.ImageBlockSize = Block
+        self.numPixels = Block[0] * Block[1]
 
-    def set_AE_Input_Data(self, Image_Blocks, Image_Blocks_Gabor, Block=(11, 11)):
+    def set_AE_Input_Data(self, Image_Blocks, Image_Blocks_Gabor):
         self.Main_Inputs = Image_Blocks
         self.Siamese_Inputs = Image_Blocks_Gabor
         self.numSamples = Image_Blocks.shape[0]
-        self.ImageBlockSize = Block
-        self.numPixels = Block[0] * Block[1]
 
     def set_AE_Parameters(self, n_Hiddens=1024, reconstruction_reg=0.5, measurement_reg=0.1, sparse_reg=0.1, gaussian=0.02, batch_size=500, display_step=1):
         #* 隐含层神经元数量
