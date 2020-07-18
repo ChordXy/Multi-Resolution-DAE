@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:30:39
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-17 23:51:09
+@LastEditTime: 2020-07-18 22:42:01
 @Description: Do not edit
 '''
 
@@ -22,9 +22,13 @@ def ParseInputs():
     parser.add_argument("-m", "--Mode", type=int, default="0", help="Run Mode. -1: Visualization. 0: Train DAE & Classifier. 1: Load DAE and Train Classifier.")
     parser.add_argument("-p", "--DefaultPath", type=str, default="./Datasets", help="Dataset parent directory.")
     parser.add_argument("-d", "--Dataset", type=str, default="MNIST", required=True, help="Dataset Name.  String Type : \"MNIST\", \"Fashion_MNIST\", \"SVHN\"")
-    parser.add_argument("-l", "--LackOfMemory", type=bool, default=False, help="If lack of memory, True, otherwise, False.")
     parser.add_argument("-i", "--TFInfo", type=int, default=0, help="Level of Tensorflow displayed information. Int type. 0:All Messages Displayed. 1: No Info 2: No Info and Warnings 3: No Info, Warnings and Errors")
     parser.add_argument("-g", "--GPUs", type=str, default="", help="Select GPUs to use. String type e.g. \"0,1,2\"")
+
+    flag_parser = parser.add_mutually_exclusive_group(required=False)
+    flag_parser.add_argument('--sync', dest='LackOfMemory', action='store_true')
+    flag_parser.add_argument('--no-sync', dest='LackOfMemory', action='store_false')
+    flag_parser.set_defaults(LackOfMemory=True)
     args = parser.parse_args()
     return args
 
