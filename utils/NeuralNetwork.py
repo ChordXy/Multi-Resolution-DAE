@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:51:08
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-17 23:04:25
+@LastEditTime: 2020-07-25 00:57:28
 @Description: Do not edit
 '''
 
@@ -553,7 +553,12 @@ class mrDAE_Classifier():
 
         self.model_path = './Model_mrDAE_Classifier/mrDAE_Classification.ckpt'
         self.max_keep_model_path = './Model_mrDAE_Classifier/mrDAE_Classification_Max.ckpt'
-        
+
+    def set_MLP_Test_Data(self, Test_X, Test_Y):
+        self.Test_X = Test_X 
+        self.Test_Y = Test_Y
+        self.n_features = self.Test_X.shape[1]
+        self.n_class = Test_Y.shape[1]
 
     #- MLP 分类网络
     def HiddenFullyConnectedLayer(self, Input_Layer, Input_Size, Output_Size, Activation, Dropout, isTrainable=True):
@@ -699,6 +704,47 @@ class mrDAE_Classifier():
 
             #* 测试集结果
             Loggers.TFprint.TFprint("Max Testing Accuracy : {}".format(Max_Accuracy))
+
+    def DisplayResult(self):
+        """显示分类网络结果
+        """
+        ############################  重置网络  ############################
+        tf.reset_default_graph()
+
+        ############################  初始化网络输入  ############################
+        input_Feature = tf.placeholder(tf.float32, [None, self.n_features])
+        y = tf.placeholder(tf.float32, [None, self.n_class])
+        dropout_keep_prob = tf.placeholder("float")
+        flag_training = tf.placeholder(dtype=tf.bool)
+
+        ############################  构建网络  ############################
+        #* 隐含层
+        hidden_layer = self.HiddenFullyConnectedLayer(input_Feature, self.n_features, self.n_Hiddens, tf.nn.leaky_relu, dropout_keep_prob)
+        #* 分类层
+        pred = self.SoftmaxClassifyLayer(hidden_layer, self.n_Hiddens, self.n_class, True, flag_training)
+        #* 优化函数
+        optimizer = tf.train.RMSPropOptimizer(learning_rate).minimize(loss, global_step=global_step)
+
+        ############################  准确率  ############################
+        prediction = tf.argmax(pred, 1)
+        correction_prediction = tf.equal(prediction, tf.argmax(y, 1))
+        accuracy = tf.reduce_mean(tf.cast(correction_prediction, tf.float32))
+
+        ############################  初始化参数  ############################
+        saver = tf.train.Saver()
+        
+        ############################  训练网络  ############################
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            saver.restore(sess, self.max_keep_model_path)
+
+            Loggers.TFprint.TFprint("Display Results!")
+
+            f_acc, p = sess.run([accuracy, prediction], feed_dict = {input_Feature : self.Test_X, y : self.Test_Y, dropout_keep_prob : 1., flag_training : False})
+            print(p.shape)
+
+            Loggers.TFprint.TFprint("Finished!")
+            save_path = saver.save(sess, self.model_path)
 
 
 #@ 附加函数

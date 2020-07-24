@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:30:39
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-18 22:42:01
+@LastEditTime: 2020-07-25 00:50:58
 @Description: Do not edit
 '''
 
@@ -19,7 +19,7 @@ def ParseInputs():
         class: 解包后的输入
     """
     parser = argparse.ArgumentParser(description='DAE')
-    parser.add_argument("-m", "--Mode", type=int, default="0", help="Run Mode. -1: Visualization. 0: Train DAE & Classifier. 1: Load DAE and Train Classifier.")
+    parser.add_argument("-m", "--Mode", type=int, default="0", help="Run Mode. -1: Visualization. 0: Train DAE & Classifier. 1: Load DAE and Train Classifier. 2: Show Result on Test set")
     parser.add_argument("-p", "--DefaultPath", type=str, default="./Datasets", help="Dataset parent directory.")
     parser.add_argument("-d", "--Dataset", type=str, default="MNIST", required=True, help="Dataset Name.  String Type : \"MNIST\", \"Fashion_MNIST\", \"SVHN\"")
     parser.add_argument("-i", "--TFInfo", type=int, default=0, help="Level of Tensorflow displayed information. Int type. 0:All Messages Displayed. 1: No Info 2: No Info and Warnings 3: No Info, Warnings and Errors")
@@ -195,12 +195,38 @@ def VisualizeSiamese():
     mrDAE.Visualization()
 
 
+#- 显示测试结果
+def DisplayTestResult():
+    #* 载入数据
+    Train_X, Train_Y, Test_X, Test_Y = Load_Data(args)
+    #* 白化
+    isWhiten = True
+    #* Gabor 滤波器
+    Gabor_Filter = getGaborFilter()
+    #* 初始化mrDAE参数
+    mrDAE = utils.MultiResolutionDAE()
+    mrDAE.Init_DAE(Gabor_Filter, (11, 11))
+    mrDAE.set_AE_Parameters(n_Hiddens=1024, reconstruction_reg=0.5, measurement_reg=0.1, sparse_reg=0.1, gaussian=0.02, batch_size=500, display_step=1)
+    mrDAE.set_TiedAE_Training_Parameters(epochs=500, lr_init=2e-1, lr_decay_step=4, lr_decay_rate=0.98)
+
+    Train_feature, Test_feature = mrDAE.get_mrDAE_Train_Test_Feature(Train_X, Test_X, isWhiten)
+    del mrDAE, Train_feature
+    gc.collect()
+
+    mlp = utils.mrDAE_Classifier()
+    mlp.set_MLP_Test_Data(Test_feature, Test_Y)
+    mlp.DisplayResult()
+
+
+
 if __name__ == "__main__":
     args = ParseInputs()
     AnalyzeEnviroment(args)
 
     if args.Mode == -1:
         VisualizeSiamese()
+    elif args.Mode == 2:
+        DisplayTestResult(args)
     else:
         Build_Networks(args)
     
