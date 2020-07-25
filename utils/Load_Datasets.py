@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:34:36
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-25 15:57:07
+@LastEditTime: 2020-07-25 21:57:48
 @Description: 读取数据集
 '''
 
@@ -60,7 +60,12 @@ def Load_SVHN_Dataset(Dataset_folder):
 
     x_train, y_train = load_svhn_data(os.path.join(Dataset_folder, 'train_32x32.mat'))
     x_test, y_test = load_svhn_data(os.path.join(Dataset_folder, 'test_32x32.mat'))
-    return x_train, y_train, x_test, y_test
+
+    #- 数据集中， 数字 0 的标签是 10， 需要转换回0
+    y_train_refined = [elem if elem < 10 else elem - 10 for elem in y_train]
+    y_test_refined = [elem if elem < 10 else elem - 10 for elem in y_test]
+    
+    return x_train, y_train_refined, x_test, y_test
 
 def Preprocess_Raw_Data(dataset_root, Data_Name="", one_hot=False, normalization=False):
     """数据预处理
@@ -96,7 +101,7 @@ def Preprocess_Raw_Data(dataset_root, Data_Name="", one_hot=False, normalization
     return Train_X, Train_Y, Test_X, Test_Y
 
 #@ 附加函数
-def DisplayDatasets(images, figure_row=8, figure_col=8, cmap='gray'):
+def DisplayDatasets(images, labels=None, figure_row=8, figure_col=8, cmap='gray'):
     """显示数据集图像
     
     Arguments:
@@ -129,6 +134,12 @@ def DisplayDatasets(images, figure_row=8, figure_col=8, cmap='gray'):
 
                 plt.subplot(figure_row, figure_col, i * figure_col + j + 1)
                 plt.imshow(images[image_count], cmap=cmap)
+                label = labels[image_count]
+                if len(label) == 1:
+                    title = str(label[0])
+                else:
+                    title = str(np.argmax(label))
+                plt.title(title)
                 image_count += 1
                 
                 #! 关闭坐标轴
@@ -141,12 +152,6 @@ if __name__ == "__main__":
     # Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "Fashion_MNIST", True, True)
     # DisplayDatasets(Train_X[0:64])
 
-    Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "SVHN", False, True)
-    zeros = []
-    for index, elem in enumerate(Train_Y):
-        if elem == 10:
-            zeros.append(index)
-        
-    print(len(zeros))
 
-    DisplayDatasets(Train_X[zeros[0:64]])
+    Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "SVHN", True, True)
+    DisplayDatasets(Train_X[0:64], Train_Y[0:64])
