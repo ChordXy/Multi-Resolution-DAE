@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:51:08
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-25 09:39:42
+@LastEditTime: 2020-07-25 10:51:07
 @Description: Do not edit
 '''
 
@@ -745,6 +745,9 @@ class mrDAE_Classifier():
             #* 获取混淆矩阵
             real_value = [np.argmax(elem) for elem in self.Test_X]
             Confusion = np.zeros([self.n_class, self.n_class], dtype=np.int32)
+
+            Loggers.TFprint.TFprint(real_value[0:10])
+            Loggers.TFprint.TFprint(prediction_value[660:670])
             for rv, pv in zip(real_value, prediction_value):
                 Confusion[rv][pv] += 1
 
@@ -762,12 +765,14 @@ class mrDAE_Classifier():
             plt.yticks(ticks, tick_names)
             plt.colorbar()
 
-            for rv in range(len(confusion)):
-                for pv in range(len(confusion[rv])):
+            
+
+            for rv in range(self.n_class):
+                for pv in range(self.n_class):
                     plt.text(rv, pv, confusion[rv][pv])
 
             plt.savefig('Confusion Matrix.jpg')
-            
+
             Loggers.TFprint.TFprint("Finished!")
 
 
