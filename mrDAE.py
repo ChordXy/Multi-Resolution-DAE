@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:30:39
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-25 00:50:58
+@LastEditTime: 2020-07-25 02:18:23
 @Description: Do not edit
 '''
 
@@ -196,7 +196,7 @@ def VisualizeSiamese():
 
 
 #- 显示测试结果
-def DisplayTestResult():
+def DisplayTestResult(args):
     #* 载入数据
     Train_X, Train_Y, Test_X, Test_Y = Load_Data(args)
     #* 白化
@@ -222,6 +222,8 @@ def DisplayTestResult():
 if __name__ == "__main__":
     args = ParseInputs()
     AnalyzeEnviroment(args)
+
+    utils.TFprint.CreateLogFile(File_Append=args.Dataset)
 
     if args.Mode == -1:
         VisualizeSiamese()

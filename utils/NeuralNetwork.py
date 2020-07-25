@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:51:08
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-25 00:57:28
+@LastEditTime: 2020-07-25 09:39:42
 @Description: Do not edit
 '''
 
@@ -722,29 +722,53 @@ class mrDAE_Classifier():
         hidden_layer = self.HiddenFullyConnectedLayer(input_Feature, self.n_features, self.n_Hiddens, tf.nn.leaky_relu, dropout_keep_prob)
         #* 分类层
         pred = self.SoftmaxClassifyLayer(hidden_layer, self.n_Hiddens, self.n_class, True, flag_training)
-        #* 优化函数
-        optimizer = tf.train.RMSPropOptimizer(learning_rate).minimize(loss, global_step=global_step)
 
         ############################  准确率  ############################
-        prediction = tf.argmax(pred, 1)
-        correction_prediction = tf.equal(prediction, tf.argmax(y, 1))
+        correction_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
         accuracy = tf.reduce_mean(tf.cast(correction_prediction, tf.float32))
 
         ############################  初始化参数  ############################
         saver = tf.train.Saver()
+
+        prediction = tf.argmax(pred, 1)
         
         ############################  训练网络  ############################
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
-            saver.restore(sess, self.max_keep_model_path)
+            saver.restore(sess, self.model_path)
 
             Loggers.TFprint.TFprint("Display Results!")
+            #* 显示准确率
+            f_acc, prediction_value = sess.run([accuracy, prediction], feed_dict = {input_Feature : self.Test_X, y : self.Test_Y, dropout_keep_prob : 1., flag_training : False})
+            Loggers.TFprint.TFprint("Accuracy = {}".format(f_acc))
 
-            f_acc, p = sess.run([accuracy, prediction], feed_dict = {input_Feature : self.Test_X, y : self.Test_Y, dropout_keep_prob : 1., flag_training : False})
-            print(p.shape)
+            #* 获取混淆矩阵
+            real_value = [np.argmax(elem) for elem in self.Test_X]
+            Confusion = np.zeros([self.n_class, self.n_class], dtype=np.int32)
+            for rv, pv in zip(real_value, prediction_value):
+                Confusion[rv][pv] += 1
 
+            #* 绘制混淆图
+            ticks = range(n_class)
+            tick_names = range(n_class)
+
+            plt.figure()
+            plt.imshow(Confusion, cmap=plt.cm.Blues)
+            
+            plt.title('Confusion Matrix')
+            plt.xlabel('Prediction')
+            plt.ylabel('Reality')
+            plt.xticks(ticks, tick_names)
+            plt.yticks(ticks, tick_names)
+            plt.colorbar()
+
+            for rv in range(len(confusion)):
+                for pv in range(len(confusion[rv])):
+                    plt.text(rv, pv, confusion[rv][pv])
+
+            plt.savefig('Confusion Matrix.jpg')
+            
             Loggers.TFprint.TFprint("Finished!")
-            save_path = saver.save(sess, self.model_path)
 
 
 #@ 附加函数
