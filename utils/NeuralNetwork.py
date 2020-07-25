@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-05 23:51:08
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-25 10:51:07
+@LastEditTime: 2020-07-25 15:31:03
 @Description: Do not edit
 '''
 
@@ -743,20 +743,21 @@ class mrDAE_Classifier():
             Loggers.TFprint.TFprint("Accuracy = {}".format(f_acc))
 
             #* 获取混淆矩阵
-            real_value = [np.argmax(elem) for elem in self.Test_X]
+            real_value = [np.argmax(elem) for elem in self.Test_Y]
             Confusion = np.zeros([self.n_class, self.n_class], dtype=np.int32)
 
-            Loggers.TFprint.TFprint(real_value[0:10])
-            Loggers.TFprint.TFprint(prediction_value[660:670])
             for rv, pv in zip(real_value, prediction_value):
                 Confusion[rv][pv] += 1
+            
+            print(Confusion)
+            print(Confusion.shape)
 
             #* 绘制混淆图
-            ticks = range(n_class)
-            tick_names = range(n_class)
+            ticks = range(self.n_class)
+            tick_names = range(self.n_class)
 
-            plt.figure()
-            plt.imshow(Confusion, cmap=plt.cm.Blues)
+
+            plt.imshow(np.array(Confusion), cmap=plt.cm.Blues)
             
             plt.title('Confusion Matrix')
             plt.xlabel('Prediction')

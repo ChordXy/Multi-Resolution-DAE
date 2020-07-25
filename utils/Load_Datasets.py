@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:34:36
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-17 01:15:36
+@LastEditTime: 2020-07-25 15:57:07
 @Description: 读取数据集
 '''
 
@@ -138,8 +138,15 @@ def DisplayDatasets(images, figure_row=8, figure_col=8, cmap='gray'):
     plt.show()
 
 if __name__ == "__main__":
-    Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "Fashion_MNIST", True, True)
-    DisplayDatasets(Train_X[0:64])
+    # Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "Fashion_MNIST", True, True)
+    # DisplayDatasets(Train_X[0:64])
 
-    Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "SVHN", True, True)
-    DisplayDatasets(Train_X[0:64])
+    Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "SVHN", False, True)
+    zeros = []
+    for index, elem in enumerate(Train_Y):
+        if elem == 10:
+            zeros.append(index)
+        
+    print(len(zeros))
+
+    DisplayDatasets(Train_X[zeros[0:64]])
