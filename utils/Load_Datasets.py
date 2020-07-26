@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:34:36
 @LastEditors: Cabrite
-@LastEditTime: 2020-07-25 21:57:48
+@LastEditTime: 2020-07-25 23:10:48
 @Description: 读取数据集
 '''
 
@@ -154,4 +154,4 @@ if __name__ == "__main__":
 
 
     Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "SVHN", True, True)
-    DisplayDatasets(Train_X[0:64], Train_Y[0:64])
+    DisplayDatasets(Test_X[0:64], Test_Y[0:64])
