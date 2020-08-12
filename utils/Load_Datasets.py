@@ -1,12 +1,12 @@
 '''
 @Author: Cabrite
 @Date: 2020-07-02 21:34:36
-@LastEditors: Cabrite
-@LastEditTime: 2020-08-12 00:09:53
+LastEditors: Cabrite
+LastEditTime: 2020-08-12 09:55:17
 @Description: 读取数据集
 '''
 
-from skimage.filters import threshold_otsu
+from skimage.filters import threshold_otsu, threshold_li
 import matplotlib.pyplot as plt
 import scipy.io as sio
 import numpy as np
@@ -65,15 +65,6 @@ def Load_SVHN_Dataset(Dataset_folder):
     #- 数据集中， 数字 0 的标签是 10， 需要转换回0
     y_train_refined = [elem if elem < 10 else elem - 10 for elem in y_train]
     y_test_refined = [elem if elem < 10 else elem - 10 for elem in y_test]
-
-    #* Otsu
-    for index, image in enumerate(x_train):
-        thresh_sauvola = threshold_otsu(image)
-        x_train[index] = image > thresh_sauvola
-
-    for index, image in enumerate(x_test):
-        thresh_sauvola = threshold_otsu(image)
-        x_test[index] = image > thresh_sauvola
     
     return x_train, y_train_refined, x_test, y_test
 
