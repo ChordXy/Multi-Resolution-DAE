@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:34:36
 LastEditors: Cabrite
-LastEditTime: 2020-08-12 09:55:17
+LastEditTime: 2020-08-13 17:04:10
 @Description: 读取数据集
 '''
 
@@ -67,6 +67,39 @@ def Load_SVHN_Dataset(Dataset_folder):
     y_test_refined = [elem if elem < 10 else elem - 10 for elem in y_test]
     
     return x_train, y_train_refined, x_test, y_test
+
+def Load_CIFAR10(Dataset_folder):
+    """读取CIFAR10数据
+
+    Args:
+        Dataset_folder (str): 路径
+    """
+    def Load_Batch_Data(filename):
+        import pickle
+        with open(filename, 'rb') as fo:
+            dataset = pickle.load(fo, encoding='bytes')
+            X = dataset[b'data'].reshape(10000, 3, 32, 32).transpose(0,2,3,1).astype("float")
+            Y = np.array(dataset[b'labels'])
+        return X, Y
+
+    train_file = [os.path.join(Dataset_folder, 'data_batch_' + str(i + 1)) for i in range(5)]
+    test_file = os.path.join(Dataset_folder, 'test_batch')
+
+    #- 训练集
+    x_train = []
+    y_train = []
+    for file in train_file:
+        X, Y = Load_Batch_Data(file)
+        x_train.append(X)
+        y_train.append(Y)
+    x_train = np.concatenate(x_train)
+    y_train = np.concatenate(y_train)
+    del X, Y
+
+    #- 测试集
+    x_test, y_test = Load_Batch_Data(test_file)
+    
+    return x_train, y_train, x_test, y_test
 
 def Preprocess_Raw_Data(dataset_root, Data_Name="", one_hot=False, normalization=False):
     """数据预处理
@@ -154,5 +187,9 @@ if __name__ == "__main__":
     # DisplayDatasets(Train_X[0:64])
 
 
-    Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "SVHN", True, True)
-    DisplayDatasets(Test_X[0:64], Test_Y[0:64])
+    # Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "SVHN", True, True)
+    # DisplayDatasets(Test_X[0:64], Test_Y[0:64])
+
+    ds = Load_CIFAR10("./Datasets/CIFAR10")
+    # data, labels = ds.
+    # print
