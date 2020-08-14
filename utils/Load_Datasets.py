@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:34:36
 LastEditors: Cabrite
-LastEditTime: 2020-08-13 17:04:10
+LastEditTime: 2020-08-14 09:40:06
 @Description: 读取数据集
 '''
 
@@ -68,7 +68,7 @@ def Load_SVHN_Dataset(Dataset_folder):
     
     return x_train, y_train_refined, x_test, y_test
 
-def Load_CIFAR10(Dataset_folder):
+def Load_CIFAR10_Dataset(Dataset_folder):
     """读取CIFAR10数据
 
     Args:
@@ -78,7 +78,7 @@ def Load_CIFAR10(Dataset_folder):
         import pickle
         with open(filename, 'rb') as fo:
             dataset = pickle.load(fo, encoding='bytes')
-            X = dataset[b'data'].reshape(10000, 3, 32, 32).transpose(0,2,3,1).astype("float")
+            X = dataset[b'data'].reshape(10000, 3, 32, 32).transpose(0, 2, 3, 1).astype(np.uint8)
             Y = np.array(dataset[b'labels'])
         return X, Y
 
@@ -98,8 +98,11 @@ def Load_CIFAR10(Dataset_folder):
 
     #- 测试集
     x_test, y_test = Load_Batch_Data(test_file)
+
+    x_train_gray = np.round(np.dot(x_train, [0.299, 0.587, 0.114])).astype(np.uint8)
+    x_test_gray = np.round(np.dot(x_test, [0.299, 0.587, 0.114])).astype(np.uint8)
     
-    return x_train, y_train, x_test, y_test
+    return x_train_gray, y_train, x_test_gray, y_test
 
 def Preprocess_Raw_Data(dataset_root, Data_Name="", one_hot=False, normalization=False):
     """数据预处理
@@ -121,6 +124,8 @@ def Preprocess_Raw_Data(dataset_root, Data_Name="", one_hot=False, normalization
     #* 自定读取
     if Data_Name == "SVHN":
         Train_X, Train_Y, Test_X, Test_Y = Load_SVHN_Dataset(dataset_directory)
+    elif Data_Name == "CIFAR10":
+        Train_X, Train_Y, Test_X, Test_Y = Load_CIFAR10_Dataset(dataset_directory)
     else:
         Train_X, Train_Y, Test_X, Test_Y = Load_MNIST_Like_Dataset(dataset_directory)
     
@@ -135,7 +140,7 @@ def Preprocess_Raw_Data(dataset_root, Data_Name="", one_hot=False, normalization
     return Train_X, Train_Y, Test_X, Test_Y
 
 #@ 附加函数
-def DisplayDatasets(images, labels=None, figure_row=8, figure_col=8, cmap='gray'):
+def DisplayDatasets(images, labels=None, one_hot=True, figure_row=8, figure_col=8, cmap='gray'):
     """显示数据集图像
     
     Arguments:
@@ -169,8 +174,8 @@ def DisplayDatasets(images, labels=None, figure_row=8, figure_col=8, cmap='gray'
                 plt.subplot(figure_row, figure_col, i * figure_col + j + 1)
                 plt.imshow(images[image_count], cmap=cmap)
                 label = labels[image_count]
-                if len(label) == 1:
-                    title = str(label[0])
+                if one_hot == False:
+                    title = str(label)
                 else:
                     title = str(np.argmax(label))
                 plt.title(title)
@@ -190,6 +195,5 @@ if __name__ == "__main__":
     # Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "SVHN", True, True)
     # DisplayDatasets(Test_X[0:64], Test_Y[0:64])
 
-    ds = Load_CIFAR10("./Datasets/CIFAR10")
-    # data, labels = ds.
-    # print
+    Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "CIFAR10", True, True)
+    DisplayDatasets(Test_X[0:64], Test_Y[0:64])
