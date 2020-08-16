@@ -2,11 +2,10 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:34:36
 LastEditors: Cabrite
-LastEditTime: 2020-08-14 09:40:06
+LastEditTime: 2020-08-16 16:10:37
 @Description: 读取数据集
 '''
 
-from skimage.filters import threshold_otsu, threshold_li
 import matplotlib.pyplot as plt
 import scipy.io as sio
 import numpy as np
@@ -15,6 +14,149 @@ import struct
 import gzip
 import os
 
+
+class Dataset():
+    #- 静态变量
+    Dataset_Root = None
+    Dataset_Name = None
+    One_Hot = True
+    Normalization = True
+    Train_X = None
+    Train_Y = None
+    Test_X = None
+    Test_Y = None
+
+    #- 静态函数
+    @staticmethod
+    def setParameters(dataset_root, dataset_name, one_hot=True, normalization=True):
+        Dataset.Dataset_Root = dataset_root
+        Dataset.Dataset_Name = dataset_name
+        Dataset.One_Hot = one_hot
+        Dataset.Normalization = normalization
+
+    @staticmethod
+    def get_Dataset():
+        if Dataset.Dataset_Name == None:
+            Loggers.TFprint.TFprint("Please Set Parameters Frist!")
+            return
+        
+        Dataset_Folder = os.path.join(Dataset.Dataset_Root, Dataset.Dataset_Name)
+        Load_Function = None
+        if Dataset.Dataset_Name == 'MNIST' or Dataset.Dataset_Name == 'Fashion_MNIST':
+            Load_Function = Dataset.Load_MNIST_Dataset
+        elif Dataset.Dataset_Name == 'SVHN':
+            Load_Function = Dataset.Load_SVHN_Dataset
+        elif Dataset.Dataset_Name == 'CIFAR10':
+            Load_Function = Dataset.Load_CIFAR10_Dataset
+
+        Dataset.Train_X, Dataset.Train_Y, Dataset.Test_X, Dataset.Test_Y = Load_Function(Dataset_Folder)
+        
+        Loggers.TFprint.TFprint("Loading {} Data...".format(Dataset.Dataset_Name))
+
+        if Dataset.One_Hot:
+            Dataset.Train_Y = np.array([[1 if i==elem else 0 for i in range(10)] for elem in Dataset.Train_Y], dtype=np.float32)
+            Dataset.Test_Y = np.array([[1 if i==elem else 0 for i in range(10)] for elem in Dataset.Test_Y], dtype=np.float32)
+        
+        if Dataset.Normalization:
+            Dataset.Train_X = Dataset.Train_X / 255
+            Dataset.Test_X = Dataset.Test_X / 255
+        Loggers.TFprint.TFprint("Loading {} Data Done!".format(Dataset.Dataset_Name))
+
+        return Dataset.__returnData()
+
+    @staticmethod
+    def Load_MNIST_Dataset(Dataset_folder):
+        """读取 MNIST、Fashion-MNIST 库
+        
+        Arguments:
+            Dataset_folder {string} -- 路径
+        
+        Returns:
+            np.array, np.array, np.array, np.array -- 读取的数据集
+        """
+        image_files = ['train-images-idx3-ubyte.gz', 't10k-images-idx3-ubyte.gz']
+        label_files = ['train-labels-idx1-ubyte.gz', 't10k-labels-idx1-ubyte.gz']
+
+        image_paths = [os.path.join(Dataset_folder, file) for file in image_files]
+        label_paths = [os.path.join(Dataset_folder, file) for file in label_files]
+
+        with gzip.open(label_paths[0], 'rb') as lbpath:
+            y_train = np.frombuffer(lbpath.read(), np.uint8, offset=8)
+
+        with gzip.open(image_paths[0], 'rb') as imgpath:
+            x_train = np.frombuffer(imgpath.read(), np.uint8, offset=16).reshape(len(y_train), 28, 28)
+
+        with gzip.open(label_paths[1], 'rb') as lbpath:
+            y_test = np.frombuffer(lbpath.read(), np.uint8, offset=8)
+
+        with gzip.open(image_paths[1], 'rb') as imgpath:
+            x_test = np.frombuffer(imgpath.read(), np.uint8, offset=16).reshape(len(y_test), 28, 28)
+        
+        return x_train, y_train, x_test, y_test
+
+    @staticmethod
+    def Load_SVHN_Dataset(Dataset_folder):
+        """读取SVHN数据
+
+        Args:
+            Dataset_folder (str): 路径
+        """
+        def load_svhn_data(Mat_file):
+            data = sio.loadmat(Mat_file)
+            x_data = np.transpose(data['X'], [3, 0, 1, 2])
+            y_data = data['y']
+            x_data_gray = np.round(np.dot(x_data, [0.299, 0.587, 0.114])).astype(np.uint8)
+            return x_data_gray, y_data
+
+        x_train, y_train = load_svhn_data(os.path.join(Dataset_folder, 'train_32x32.mat'))
+        x_test, y_test = load_svhn_data(os.path.join(Dataset_folder, 'test_32x32.mat'))
+
+        #- 数据集中， 数字 0 的标签是 10， 需要转换回0
+        y_train_refined = [elem if elem < 10 else elem - 10 for elem in y_train]
+        y_test_refined = [elem if elem < 10 else elem - 10 for elem in y_test]
+        
+        return x_train, y_train_refined, x_test, y_test
+    
+    @staticmethod
+    def Load_CIFAR10_Dataset(Dataset_folder):
+        """读取CIFAR10数据
+
+        Args:
+            Dataset_folder (str): 路径
+        """
+        def Load_Batch_Data(filename):
+            import pickle
+            with open(filename, 'rb') as fo:
+                dataset = pickle.load(fo, encoding='bytes')
+                X = dataset[b'data'].reshape(10000, 3, 32, 32).transpose(0, 2, 3, 1).astype(np.uint8)
+                Y = np.array(dataset[b'labels'])
+            return X, Y
+
+        train_file = [os.path.join(Dataset_folder, 'data_batch_' + str(i + 1)) for i in range(5)]
+        test_file = os.path.join(Dataset_folder, 'test_batch')
+
+        #- 训练集
+        x_train = []
+        y_train = []
+        for file in train_file:
+            X, Y = Load_Batch_Data(file)
+            x_train.append(X)
+            y_train.append(Y)
+        x_train = np.concatenate(x_train)
+        y_train = np.concatenate(y_train)
+        del X, Y
+
+        #- 测试集
+        x_test, y_test = Load_Batch_Data(test_file)
+
+        x_train_gray = np.round(np.dot(x_train, [0.299, 0.587, 0.114])).astype(np.uint8)
+        x_test_gray = np.round(np.dot(x_test, [0.299, 0.587, 0.114])).astype(np.uint8)
+        
+        return x_train_gray, y_train, x_test_gray, y_test
+    
+    @staticmethod
+    def __returnData():
+        return Dataset.Train_X, Dataset.Train_Y, Dataset.Test_X, Dataset.Test_Y
 
 #@ 读取数据集
 def Load_MNIST_Like_Dataset(Dataset_folder):
@@ -195,5 +337,9 @@ if __name__ == "__main__":
     # Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "SVHN", True, True)
     # DisplayDatasets(Test_X[0:64], Test_Y[0:64])
 
-    Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "CIFAR10", True, True)
+    # Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "CIFAR10", True, True)
+    # DisplayDatasets(Test_X[0:64], Test_Y[0:64])
+
+    Dataset.setParameters('./Datasets', 'MNIST', True, True)
+    Train_X, Train_Y, Test_X, Test_Y = Dataset.get_Dataset()
     DisplayDatasets(Test_X[0:64], Test_Y[0:64])

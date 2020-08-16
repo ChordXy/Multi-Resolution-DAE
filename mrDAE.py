@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:30:39
 LastEditors: Cabrite
-LastEditTime: 2020-08-12 00:13:40
+LastEditTime: 2020-08-16 10:35:29
 @Description: Do not edit
 '''
 
@@ -144,7 +144,7 @@ def Build_Networks(args):
     mrDAE = utils.MultiResolutionDAE()
     mrDAE.Init_DAE(Gabor_Filter, (11, 11))
     mrDAE.set_AE_Parameters(n_Hiddens=1024, reconstruction_reg=0.5, measurement_reg=0.1, sparse_reg=0.1, gaussian=0.02, batch_size=500, display_step=1)
-    mrDAE.set_TiedAE_Training_Parameters(epochs=1000, lr_init=2e-1, lr_decay_step=4, lr_decay_rate=0.98)
+    mrDAE.set_TiedAE_Training_Parameters(epochs=500, lr_init=2e-1, lr_decay_step=4, lr_decay_rate=0.98)
 
     if args.Mode == 0:
         #* 截取图像块、数据预处理
