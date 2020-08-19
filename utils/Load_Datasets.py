@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:34:36
 LastEditors: Cabrite
-LastEditTime: 2020-08-16 16:10:37
+LastEditTime: 2020-08-19 09:32:31
 @Description: 读取数据集
 '''
 
@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import scipy.io as sio
 import numpy as np
 import Loggers
+import random
 import struct
 import gzip
 import os
@@ -158,6 +159,10 @@ class Dataset():
     def __returnData():
         return Dataset.Train_X, Dataset.Train_Y, Dataset.Test_X, Dataset.Test_Y
 
+
+
+
+
 #@ 读取数据集
 def Load_MNIST_Like_Dataset(Dataset_folder):
     """读取 MNIST、Fashion-MNIST 库
@@ -186,6 +191,15 @@ def Load_MNIST_Like_Dataset(Dataset_folder):
     with gzip.open(image_paths[1], 'rb') as imgpath:
         x_test = np.frombuffer(imgpath.read(), np.uint8, offset=16).reshape(len(y_test), 28, 28)
     
+    # def invert(Images, ratio):
+    #     num = Images.shape[0]
+    #     number = random.sample(range(0, num), int(num * ratio))
+    #     for elem in number:
+    #         Images[elem] = 255 - Images[elem]
+    #     return Images
+    # x_train = invert(np.array(x_train), 0.5)
+    # x_test = invert(np.array(x_test), 0.5)
+
     return x_train, y_train, x_test, y_test
 
 def Load_SVHN_Dataset(Dataset_folder):
@@ -330,8 +344,8 @@ def DisplayDatasets(images, labels=None, one_hot=True, figure_row=8, figure_col=
     plt.show()
 
 if __name__ == "__main__":
-    # Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "Fashion_MNIST", True, True)
-    # DisplayDatasets(Train_X[0:64])
+    Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "CIFAR10", True, True)
+    DisplayDatasets(Train_X[0:64], Train_Y[0:64])
 
 
     # Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "SVHN", True, True)
@@ -340,6 +354,6 @@ if __name__ == "__main__":
     # Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "CIFAR10", True, True)
     # DisplayDatasets(Test_X[0:64], Test_Y[0:64])
 
-    Dataset.setParameters('./Datasets', 'MNIST', True, True)
-    Train_X, Train_Y, Test_X, Test_Y = Dataset.get_Dataset()
-    DisplayDatasets(Test_X[0:64], Test_Y[0:64])
+    # Dataset.setParameters('./Datasets', 'Fashion_MNIST', True, True)
+    # Train_X, Train_Y, Test_X, Test_Y = Dataset.get_Dataset()
+    # DisplayDatasets(Test_X[0:64], Test_Y[0:64])
