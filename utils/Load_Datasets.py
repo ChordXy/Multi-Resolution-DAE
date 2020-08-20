@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:34:36
 LastEditors: Cabrite
-LastEditTime: 2020-08-19 09:32:31
+LastEditTime: 2020-08-20 09:29:05
 @Description: 读取数据集
 '''
 
@@ -260,6 +260,42 @@ def Load_CIFAR10_Dataset(Dataset_folder):
     
     return x_train_gray, y_train, x_test_gray, y_test
 
+def Load_License_Dataset(Dataset_folder):
+    """读取车牌数据
+
+    Args:
+        Dataset_folder (str): 路径
+    """
+    def Load_Batch_Data(filename):
+        import pickle
+        with open(filename, 'rb') as fo:
+            dataset = pickle.load(fo, encoding='bytes')
+            X = dataset['data'].reshape(dataset['number'], 32, 16).astype(np.uint8)
+            Y = np.array(dataset['label'])
+        return X, Y
+
+    train_file = [os.path.join(Dataset_folder, 'train_batch' + str(i + 1)) for i in range(2)]
+    test_file = os.path.join(Dataset_folder, 'test')
+
+    #- 训练集
+    x_train = []
+    y_train = []
+    for file in train_file:
+        X, Y = Load_Batch_Data(file)
+        x_train.append(X)
+        y_train.append(Y)
+    x_train = np.concatenate(x_train)
+    y_train = np.concatenate(y_train)
+    del X, Y
+
+    #- 测试集
+    x_test, y_test = Load_Batch_Data(test_file)
+    
+    x_train = 255 - x_train
+    x_test = 255 - x_test
+
+    return x_train, y_train, x_test, y_test
+
 def Preprocess_Raw_Data(dataset_root, Data_Name="", one_hot=False, normalization=False):
     """数据预处理
     
@@ -282,13 +318,17 @@ def Preprocess_Raw_Data(dataset_root, Data_Name="", one_hot=False, normalization
         Train_X, Train_Y, Test_X, Test_Y = Load_SVHN_Dataset(dataset_directory)
     elif Data_Name == "CIFAR10":
         Train_X, Train_Y, Test_X, Test_Y = Load_CIFAR10_Dataset(dataset_directory)
+    elif Data_Name == 'License':
+        Train_X, Train_Y, Test_X, Test_Y = Load_License_Dataset(dataset_directory)
     else:
         Train_X, Train_Y, Test_X, Test_Y = Load_MNIST_Like_Dataset(dataset_directory)
     
+    numLabels = len(set(Train_Y))
+
     if one_hot:
-        Train_Y = np.array([[1 if i==elem else 0 for i in range(10)] for elem in Train_Y], dtype=np.float32)
-        Test_Y = np.array([[1 if i==elem else 0 for i in range(10)] for elem in Test_Y], dtype=np.float32)
-    
+        Train_Y = np.array([[1 if i==elem else 0 for i in range(numLabels)] for elem in Train_Y], dtype=np.float32)
+        Test_Y = np.array([[1 if i==elem else 0 for i in range(numLabels)] for elem in Test_Y], dtype=np.float32)
+
     if normalization:
         Train_X = Train_X / 255
         Test_X = Test_X / 255
@@ -344,9 +384,8 @@ def DisplayDatasets(images, labels=None, one_hot=True, figure_row=8, figure_col=
     plt.show()
 
 if __name__ == "__main__":
-    Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "CIFAR10", True, True)
-    DisplayDatasets(Train_X[0:64], Train_Y[0:64])
-
+    Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "License", True, True)
+    DisplayDatasets(Test_X[0:64], Test_Y[0:64])
 
     # Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "SVHN", True, True)
     # DisplayDatasets(Test_X[0:64], Test_Y[0:64])
