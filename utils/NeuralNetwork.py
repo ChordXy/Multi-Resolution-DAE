@@ -1,8 +1,8 @@
 '''
 @Author: Cabrite
 @Date: 2020-07-05 23:51:08
-@LastEditors: Cabrite
-@LastEditTime: 2020-07-25 15:31:03
+LastEditors: Cabrite
+LastEditTime: 2020-08-21 16:38:17
 @Description: Do not edit
 '''
 
@@ -83,9 +83,10 @@ class MultiResolutionDAE():
         with tf.variable_scope('Siamese_Layer') as scope_siamese:
             weight = tf.get_variable('Siamese_Weight', [Input_Size, Output_Size], tf.float32, xavier_initializer(), trainable=isTrainable)
             bias = tf.get_variable('Siamese_Bias', [Output_Size], tf.float32, tf.zeros_initializer(), trainable=isTrainable)
-        siamese_layer = Activation(tf.matmul(Input_Layer, weight) + bias)
+        siamese_layer = tf.matmul(Input_Layer, weight) + bias
         siamese_layer_bn = tf.contrib.layers.batch_norm(siamese_layer, 0.9, epsilon = 1e-5, trainable=isTrainable)
-        return siamese_layer_bn
+        siamese_layer_activate = Activation(siamese_layer_bn)
+        return siamese_layer_activate
 
     #- Tied AE网络
     def TiedEncoderDecoderLayer(self, Input_Layer, Input_Size, Hidden_Size, Activation_Encoder, isTrainable=True):

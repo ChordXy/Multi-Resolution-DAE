@@ -2,7 +2,7 @@
 @Author: Cabrite
 @Date: 2020-07-02 21:34:36
 LastEditors: Cabrite
-LastEditTime: 2020-08-20 09:29:05
+LastEditTime: 2020-08-21 14:46:43
 @Description: 读取数据集
 '''
 
@@ -385,7 +385,7 @@ def DisplayDatasets(images, labels=None, one_hot=True, figure_row=8, figure_col=
 
 if __name__ == "__main__":
     Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "License", True, True)
-    DisplayDatasets(Test_X[0:64], Test_Y[0:64])
+    DisplayDatasets(Train_X[0:128], Train_Y[0:128])
 
     # Train_X, Train_Y, Test_X, Test_Y = Preprocess_Raw_Data("./Datasets", "SVHN", True, True)
     # DisplayDatasets(Test_X[0:64], Test_Y[0:64])
